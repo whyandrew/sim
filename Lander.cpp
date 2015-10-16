@@ -159,8 +159,59 @@
   Standard C libraries
 */
 #include <math.h>
-
+#include <stdio.h>
 #include "Lander_Control.h"
+
+double Corrected_Angle(void)
+{
+ /* Return the ship's angle to vertical, corrected so that the
+    orientation considered vertical is one chosen so as to
+    preserve manouverability in spite of any thruster failures.
+    
+   Applicable only when angle sensor is functioning. */
+
+ double corrected;
+ double uncorrected = Angle();
+ double height_from_platform = PLAT_Y - Position_Y();
+ double min_height = 30.0; // Minimum height at which angle adjustments
+                           // apply. Below this, the lander is so close
+                           // to the landing pad that it should reorient
+                           // normally to avoid crashing.
+ //printf("%d %d %d\n", LT_OK, MT_OK, RT_OK);
+ if (LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
+ { // Two adjacent thrusters (left and middle) are working, so
+   // we want to orient so that they are -45 and +45 from 180 (down)
+  corrected = uncorrected + 45.0;
+  corrected = (corrected < 360) ? corrected : (corrected - 360.0);
+ }
+ else if (!LT_OK && MT_OK && RT_OK && (height_from_platform > min_height))
+ { // Two adjacent thrusters (middle and right) are working, so
+   // we want to orient so that they are -45 and +45 from 180 (down)
+  corrected = uncorrected - 45.0;
+  corrected = (corrected >= 0) ? corrected : (corrected + 360.0);  
+ }
+ else if (LT_OK && !MT_OK && !RT_OK && (height_from_platform > min_height))
+ { // Only the left thruster is working, so we want to orient so that
+   // it points down.
+  corrected = uncorrected + 90.0;
+  corrected = (corrected < 360) ? corrected : (corrected - 360.0);  
+ }
+ else if (!MT_OK && RT_OK && (height_from_platform > min_height))
+ { // The middle thruster is out and the right thruster still works,
+   // so we orient so that the right thruster points down. The left
+   // thruster may or may not work, but without a middle thruster
+   // we need either the right or the left thruster pointing down.
+  corrected = uncorrected - 90.0;
+  corrected = (corrected >= 0) ? corrected : (corrected + 360.0);  
+ }
+ else // Either all thrusters work, none work (!), or
+      // height_from_platform <= min_height. In each of these
+      // cases, normal orientation is the best choice. 
+ {
+  corrected = uncorrected;
+ }
+ return corrected;
+}
 
 void Lander_Control(void)
 {
@@ -245,10 +296,10 @@ void Lander_Control(void)
  // effect, i.e. the rotation angle does not accumulate
  // for successive calls.
 
- if (Angle()>1&&Angle()<359)
+ if (Corrected_Angle()>(1)&&Corrected_Angle()<359)
  {
-  if (Angle()>=180) Rotate(360-Angle());
-  else Rotate(-Angle());
+  if (Corrected_Angle()>=180) Rotate(360-Corrected_Angle());
+  else Rotate(-Corrected_Angle());
   return;
  }
 
@@ -357,10 +408,10 @@ void Safety_Override(void)
  // what is it?
  if (dmin<DistLimit*fmax(.25,fmin(fabs(Velocity_X())/5.0,1)))
  { // Too close to a surface in the horizontal direction
-  if (Angle()>1&&Angle()<359)
+  if (Corrected_Angle()>1&&Corrected_Angle()<359)
   {
-   if (Angle()>=180) Rotate(360-Angle());
-   else Rotate(-Angle());
+   if (Corrected_Angle()>=180) Rotate(360-Corrected_Angle());
+   else Rotate(-Corrected_Angle());
    return;
   }
 
@@ -391,10 +442,10 @@ void Safety_Override(void)
  }
  if (dmin<DistLimit)   // Too close to a surface in the horizontal direction
  {
-  if (Angle()>1||Angle()>359)
+  if (Corrected_Angle()>1||Corrected_Angle()>359)
   {
-   if (Angle()>=180) Rotate(360-Angle());
-   else Rotate(-Angle());
+   if (Corrected_Angle()>=180) Rotate(360-Corrected_Angle());
+   else Rotate(-Corrected_Angle());
    return;
   }
   if (Velocity_Y()>2.0){
