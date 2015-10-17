@@ -170,8 +170,8 @@ double Corrected_Angle(void)
     
    Applicable only when angle sensor is functioning. */
 
-    double corrected;
-    double uncorrected = Angle();
+    double corrected = Angle();
+    double tilt = (Position_X()>PLAT_X) ? 20.0 : -20.0;
     double height_from_platform = PLAT_Y - Position_Y();
     double min_height = 30.0; // Minimum height at which angle adjustments
                             // apply. Below this, the lander is so close
@@ -179,38 +179,80 @@ double Corrected_Angle(void)
                             // normally to avoid crashing.
     //printf("%d %d %d\n", LT_OK, MT_OK, RT_OK);
     if (LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
-    { // Two adjacent thrusters (left and middle) are working, so
+    {   // Two adjacent thrusters (left and middle) are working, so
         // we want to orient so that they are -45 and +45 from 180 (down)
-        corrected = uncorrected + 45.0;
-        corrected = (corrected < 360) ? corrected : (corrected - 360.0);
+        corrected += 45.0;
     }
     else if (!LT_OK && MT_OK && RT_OK && (height_from_platform > min_height))
-    { // Two adjacent thrusters (middle and right) are working, so
+    {   // Two adjacent thrusters (middle and right) are working, so
         // we want to orient so that they are -45 and +45 from 180 (down)
-        corrected = uncorrected - 45.0;
-        corrected = (corrected >= 0) ? corrected : (corrected + 360.0);  
+        corrected -= 45.0;  
     }
     else if (LT_OK && !MT_OK && !RT_OK && (height_from_platform > min_height))
-    { // Only the left thruster is working, so we want to orient so that
+    {   // Only the left thruster is working, so we want to orient so that
         // it points down.
-        corrected = uncorrected + 90.0;
-        corrected = (corrected < 360) ? corrected : (corrected - 360.0);  
+        corrected += 90.0;
+        corrected += tilt; 
     }
     else if (!MT_OK && RT_OK && (height_from_platform > min_height))
-    { // The middle thruster is out and the right thruster still works,
+    {   // The middle thruster is out and the right thruster still works,
         // so we orient so that the right thruster points down. The left
         // thruster may or may not work, but without a middle thruster
-        // we need either the right or the left thruster pointing down.
-        corrected = uncorrected - 90.0;
-        corrected = (corrected >= 0) ? corrected : (corrected + 360.0);  
+        // we need either the right or the left thruster pointing down,
+        // so right is chosen arbitrarily.
+        corrected -= 90.0;
+        corrected += tilt;
+    }
+    else if (!LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
+    {   // The middle thruster is the only one working, so we orient so that
+        // the middle thruster points down. 
+        corrected += tilt; 
     }
     else // Either all thrusters work, none work (!), or
-        // height_from_platform <= min_height. In each of these
-        // cases, normal orientation is the best choice. 
+         // height_from_platform <= min_height. In each of these
+         // cases, normal orientation is the best choice. 
     {
-        corrected = uncorrected;
+        
     }
+    while (corrected >= 360)
+        corrected -= 360.0;
+    while (corrected < 0)
+        corrected += 360.0;
     return corrected;
+}
+
+void Single_Thruster(double power)
+{
+    /* If the middle and right thrusters are out and the left one works,
+       activate the left thruster using power value power.
+
+       If the middle thruster is out and the right thruster works,
+       use the right thruster.
+
+       If the middle thruster works and both the others are out, use
+       the middle thruster.
+       
+       If the middle thruster and at least one other thruster work,
+       print an error message to stderror explaining that Single_Thruster
+       is not intended for use in this situation.
+    */
+    if (LT_OK && !MT_OK && !RT_OK)
+    {
+        Left_Thruster(power);
+    }
+    else if (!MT_OK && RT_OK)
+    {
+        Right_Thruster(power);
+    }
+    else if (!LT_OK && MT_OK && !RT_OK)
+    {
+        Main_Thruster(power);
+    }
+    else
+    {
+        fprintf(stderr, "Error: Single_Thruster() is not intended to be used\n"
+                        "when two adjacent thrusters are working.\n");
+    }
 }
 
 void Lander_Control(void)
@@ -306,35 +348,59 @@ void Lander_Control(void)
     // Module is oriented properly, check for horizontal position
     // and set thrusters appropriately.
     if (Position_X()>PLAT_X)
-    {
-        // Lander is to the LEFT of the landing platform, use Right thrusters to move
-        // lander to the left.
-        Left_Thruster(0);   // Make sure we're not fighting ourselves here!
-        if (Velocity_X()>(-VXlim)) Right_Thruster((VXlim+fmin(0,Velocity_X()))/VXlim);
+    {   
+        if (MT_OK && (RT_OK || LT_OK )) // If the middle thruster and at least one of the others
+        {                               // are functioning, use the original landing code
+            // Lander is to the LEFT of the landing platform, use Right thrusters to move
+            // lander to the left.
+            Left_Thruster(0);   // Make sure we're not fighting ourselves here!
+            if (Velocity_X()>(-VXlim)) Right_Thruster((VXlim+fmin(0,Velocity_X()))/VXlim);
+            else
+            {
+                // Exceeded velocity limit, brake
+                Right_Thruster(0);
+                Left_Thruster(fabs(VXlim-Velocity_X()));
+            }
+        }
         else
         {
-            // Exceeded velocity limit, brake
-            Right_Thruster(0);
-            Left_Thruster(fabs(VXlim-Velocity_X()));
+            // Single thruster mode: nothing to do, Corrected_Angle has aimed the thruster
+            // as needed for the desired horizontal direction
         }
     }
     else
     {
-        // Lander is to the RIGHT of the landing platform, opposite from above
-        Right_Thruster(0);
-        if (Velocity_X()<VXlim) Left_Thruster((VXlim-fmax(0,Velocity_X()))/VXlim);
+        if (MT_OK && (RT_OK || LT_OK )) // If the middle thruster and at least one of the others
+        {
+            // Lander is to the RIGHT of the landing platform, opposite from above
+            Right_Thruster(0);
+            if (Velocity_X()<VXlim) Left_Thruster((VXlim-fmax(0,Velocity_X()))/VXlim);
+            else
+            {
+                Left_Thruster(0);
+                Right_Thruster(fabs(VXlim-Velocity_X()));
+            }
+        }
         else
         {
-            Left_Thruster(0);
-            Right_Thruster(fabs(VXlim-Velocity_X()));
+            // Single thruster mode
+            //Single_Thruster(1.0);
         }
     }
 
     // Vertical adjustments. Basically, keep the module below the limit for
     // vertical velocity and allow for continuous descent. We trust
     // Safety_Override() to save us from crashing with the ground.
-    if (Velocity_Y()<VYlim) Main_Thruster(1.0);
-    else Main_Thruster(0);
+    if (MT_OK && (RT_OK || LT_OK ))
+    {
+        if (Velocity_Y()<VYlim) Main_Thruster(1.0);
+        else Main_Thruster(0);
+    }
+    else
+    {
+        if (Velocity_Y()<VYlim) Single_Thruster(1.0);
+        else Single_Thruster(0);
+    }
 }
 
 void Safety_Override(void)
@@ -453,7 +519,14 @@ void Safety_Override(void)
         }
         else
         {
-            Main_Thruster(1.0);
+            if (MT_OK && (RT_OK || LT_OK ))
+            {
+                Main_Thruster(1.0);
+            }
+            else
+            {
+                Single_Thruster(1.0);
+            }
         }
     }
 }
