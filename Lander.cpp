@@ -163,8 +163,21 @@
 #include "Lander_Control.h"
 
 // Constants
-
 #define NUMSAMPLES 40
+
+// Sensor states variables
+// True == working ok; False == something's wrong!
+bool Vx_OK = true; // Velocity_X()
+bool Vy_OK = true; // Velocity_Y()
+bool PosX_OK = true;
+bool PosY_OK = true;
+bool Angle_OK = true;
+bool Sonar_OK = true;
+
+// Control states
+bool isRotating = false;
+double targetRotate = 0.0;
+
 
 // Robust APIs for all sensors
 double Robust_Velocity_X()
@@ -207,6 +220,47 @@ double Robust_Position_Y()
     return (sum / NUMSAMPLES);
 }
 
+// Angle from 0 to 360 degrees w.r.t vertical up
+double Robust_Sonar(double angle)
+{
+    // TODO
+    // Now only takes single reading since description says Sonar reading takes time to update (how often tho?)
+    // Use linear interpolation, should be mostly ok except in sharp pointy terrain.
+    while (angle >= 360.0)
+    {
+        angle -= 360.0;
+    }
+    while (angle < 0.0)
+    {
+        angle +=360.0;
+    }
+
+    // super special case is angle = 0.0000; 360.0 will be changed to 0.000 above
+    if (0.000 == angle)
+    {
+        return SONAR_DIST[0];
+    }
+
+    double angleSeg = angle/10.0; // 0.0~ to 35.9~
+    int topIndex = 1 + (int)(angleSeg); // 1 to 36
+    int botIndex = (int)(angleSeg); // 0 to 35
+    double decimals = angleSeg - botIndex;
+    double ret;
+
+    if (0.0 != decimals)
+    {
+        // Intrapolate 2 indexes of SONAR_DIST
+        return SONAR_DIST[botIndex] + ((SONAR_DIST[topIndex] - SONAR_DIST[botIndex]) * decimals);
+    }
+    else
+    {
+        // Cases when angle is exact multiples of 10.0 degrees
+        return SONAR_DIST[botIndex];
+    }
+
+    return ret;
+}
+
 double Robust_Angle()
 {
     // Corner case when angle is near 0 (360) degrees:
@@ -222,7 +276,7 @@ double Robust_Angle()
 
     ret = ret / NUMSAMPLES;
 
-    while (ret > 360.0)
+    while (ret >= 360.0)
     {
         ret -= 360.0;
     }
@@ -236,7 +290,17 @@ double Robust_Angle()
 double Robust_RangeDist()
 {
     //RangeDist() never fails, and it appears to be always accurate... or is it?
-    return RangeDist();
+
+    // RangeDist reads from the direction of the main thruster
+    if (Angle_OK)
+    {
+        return RangeDist();
+    }
+    else // if Angle sensor not working, don't really know where we're point at...
+    {
+        //TODO .... what to do?!
+        return RangeDist();
+    }
 }
 
 
