@@ -162,6 +162,84 @@
 #include <stdio.h>
 #include "Lander_Control.h"
 
+// Constants
+
+#define NUMSAMPLES 40
+
+// Robust APIs for all sensors
+double Robust_Velocity_X()
+{
+    double sum = 0.0;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        sum += Velocity_X();
+    }
+    return (sum / NUMSAMPLES);
+}
+
+double Robust_Velocity_Y()
+{
+    double sum = 0.0;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        sum += Velocity_Y();
+    }
+    return (sum / NUMSAMPLES);
+}
+
+double Robust_Position_X()
+{
+    double sum = 0.0;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        sum += Position_X();
+    }
+    return (sum / NUMSAMPLES);
+}
+
+double Robust_Position_Y()
+{
+    double sum = 0.0;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        sum += Position_Y();
+    }
+    return (sum / NUMSAMPLES);
+}
+
+double Robust_Angle()
+{
+    // Corner case when angle is near 0 (360) degrees:
+    // It appears Lander_Control API will always return Angle() either 
+    // using 0-range (can be negative angle), 360-range (can be more than 360)
+    // on a single call into Lander_Control.
+    // This makes averaging easy since we won't be averaging, say, 359 and 1 degrees
+    double ret = 0.0;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        ret += Angle();
+    }
+
+    ret = ret / NUMSAMPLES;
+
+    while (ret > 360.0)
+    {
+        ret -= 360.0;
+    }
+    while (ret < 0.0)
+    {
+        ret += 360.0;
+    }
+    return ret;
+}
+
+double Robust_RangeDist()
+{
+    //RangeDist() never fails, and it appears to be always accurate... or is it?
+    return RangeDist();
+}
+
+
 double Corrected_Angle(void)
 {
     /* Return the ship's angle to vertical, corrected so that the
@@ -170,9 +248,9 @@ double Corrected_Angle(void)
     
    Applicable only when angle sensor is functioning. */
 
-    double corrected = Angle();
+    double corrected = Robust_Angle();
     double tilt = (Position_X()>PLAT_X) ? 20.0 : -20.0;
-    double height_from_platform = PLAT_Y - Position_Y();
+    double height_from_platform = PLAT_Y - Robust_Position_Y();
     double min_height = 30.0; // Minimum height at which angle adjustments
                             // apply. Below this, the lander is so close
                             // to the landing pad that it should reorient
@@ -306,6 +384,13 @@ void Lander_Control(void)
             ACCESS THE SIMULATION STATE. That's cheating,
             I'll give you zero.
     **************************************************/
+    //printf(".........................................................................\n");
+    // for (int i = 0; i<10; i++)
+    // {
+    //     printf("X:%f; Y:%f; Vx:%f; Vy:%f; Angle:%f; RangeDist:%f\n",
+    //         Robust_Position_X(), Robust_Position_Y(), Robust_Velocity_X(), Robust_Velocity_Y(),
+    //         Robust_Angle(), Robust_RangeDist() );
+    // }
 
     double VXlim;
     double VYlim;
@@ -315,16 +400,20 @@ void Lander_Control(void)
     // move faster, decrease speed limits as the module
     // approaches landing. You may need to be more conservative
     // with velocity limits when things fail.
-    if (fabs(Position_X()-PLAT_X)>200) VXlim=25;
-    else if (fabs(Position_X()-PLAT_X)>100) VXlim=15;
+    if (fabs(Robust_Position_X()-PLAT_X)>200) VXlim=25;
+    else if (fabs(Robust_Position_X()-PLAT_X)>100) VXlim=15;
     else VXlim=5;
 
-    if (PLAT_Y-Position_Y()>200) VYlim=-20;
-    else if (PLAT_Y-Position_Y()>100) VYlim=-10;  // These are negative because they
+    if (PLAT_Y-Robust_Position_Y()>200) VYlim=-20;
+    else if (PLAT_Y-Robust_Position_Y()>100) VYlim=-10;  // These are negative because they
     else VYlim=-4;                     // limit descent velocity
 
     // Ensure we will be OVER the platform when we land
-    if (fabs(PLAT_X-Position_X())/fabs(Velocity_X())>1.25*fabs(PLAT_Y-Position_Y())/fabs(Velocity_Y())) VYlim=0;
+    if (fabs(PLAT_X-Robust_Position_X()) / fabs(Robust_Velocity_X()) > 
+        1.25 * fabs(PLAT_Y-Robust_Position_Y()) / fabs(Robust_Velocity_Y())) 
+    {
+        VYlim=0;
+    }
 
     // IMPORTANT NOTE: The code below assumes all components working
     // properly. IT MAY OR MAY NOT BE USEFUL TO YOU when components
@@ -347,19 +436,19 @@ void Lander_Control(void)
 
     // Module is oriented properly, check for horizontal position
     // and set thrusters appropriately.
-    if (Position_X()>PLAT_X)
+    if (Robust_Position_X()>PLAT_X)
     {   
         if (MT_OK && (RT_OK || LT_OK )) // If the middle thruster and at least one of the others
         {                               // are functioning, use the original landing code
             // Lander is to the LEFT of the landing platform, use Right thrusters to move
             // lander to the left.
             Left_Thruster(0);   // Make sure we're not fighting ourselves here!
-            if (Velocity_X()>(-VXlim)) Right_Thruster((VXlim+fmin(0,Velocity_X()))/VXlim);
+            if (Robust_Velocity_X()>(-VXlim)) Right_Thruster((VXlim+fmin(0,Robust_Velocity_X()))/VXlim);
             else
             {
                 // Exceeded velocity limit, brake
                 Right_Thruster(0);
-                Left_Thruster(fabs(VXlim-Velocity_X()));
+                Left_Thruster(fabs(VXlim-Robust_Velocity_X()));
             }
         }
         else
@@ -374,11 +463,11 @@ void Lander_Control(void)
         {
             // Lander is to the RIGHT of the landing platform, opposite from above
             Right_Thruster(0);
-            if (Velocity_X()<VXlim) Left_Thruster((VXlim-fmax(0,Velocity_X()))/VXlim);
+            if (Robust_Velocity_X()<VXlim) Left_Thruster((VXlim-fmax(0,Robust_Velocity_X()))/VXlim);
             else
             {
                 Left_Thruster(0);
-                Right_Thruster(fabs(VXlim-Velocity_X()));
+                Right_Thruster(fabs(VXlim-Robust_Velocity_X()));
             }
         }
         else
@@ -393,12 +482,12 @@ void Lander_Control(void)
     // Safety_Override() to save us from crashing with the ground.
     if (MT_OK && (RT_OK || LT_OK ))
     {
-        if (Velocity_Y()<VYlim) Main_Thruster(1.0);
+        if (Robust_Velocity_Y()<VYlim) Main_Thruster(1.0);
         else Main_Thruster(0);
     }
     else
     {
-        if (Velocity_Y()<VYlim) Single_Thruster(1.0);
+        if (Robust_Velocity_Y()<VYlim) Single_Thruster(1.0);
         else Single_Thruster(0);
     }
 }
@@ -433,6 +522,8 @@ void Safety_Override(void)
     carry out speed corrections using the thrusters
 **************************************************/
 
+    //printf("Safety_Override\n");
+
     double DistLimit;
     double Vmag;
     double dmin;
@@ -440,8 +531,8 @@ void Safety_Override(void)
     // Establish distance threshold based on lander
     // speed (we need more time to rectify direction
     // at high speed)
-    Vmag=Velocity_X()*Velocity_X();
-    Vmag+=Velocity_Y()*Velocity_Y();
+    Vmag=Robust_Velocity_X()*Robust_Velocity_X();
+    Vmag+=Robust_Velocity_Y()*Robust_Velocity_Y();
 
     DistLimit=fmax(75,Vmag);
 
@@ -449,7 +540,7 @@ void Safety_Override(void)
     // safety override (close to the landing platform
     // the Control_Policy() should be trusted to
     // safely land the craft)
-    if (fabs(PLAT_X-Position_X())<150&&fabs(PLAT_Y-Position_Y())<150) return;
+    if (fabs(PLAT_X-Robust_Position_X())<150&&fabs(PLAT_Y-Robust_Position_Y())<150) return;
 
     // Determine the closest surfaces in the direction
     // of motion. This is done by checking the sonar
@@ -459,7 +550,7 @@ void Safety_Override(void)
 
     // Horizontal direction.
     dmin=1000000;
-    if (Velocity_X()>0)
+    if (Robust_Velocity_X()>0)
     {
         for (int i=5;i<14;i++)
             if (SONAR_DIST[i]>-1&&SONAR_DIST[i]<dmin) dmin=SONAR_DIST[i];
@@ -472,7 +563,7 @@ void Safety_Override(void)
     // Determine whether we're too close for comfort. There is a reason
     // to have this distance limit modulated by horizontal speed...
     // what is it?
-    if (dmin<DistLimit*fmax(.25,fmin(fabs(Velocity_X())/5.0,1)))
+    if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1)))
     { // Too close to a surface in the horizontal direction
         if (Corrected_Angle()>1&&Corrected_Angle()<359)
         {
@@ -481,7 +572,7 @@ void Safety_Override(void)
             return;
         }
 
-        if (Velocity_X()>0){
+        if (Robust_Velocity_X()>0){
             Right_Thruster(1.0);
             Left_Thruster(0.0);
         }
@@ -494,7 +585,7 @@ void Safety_Override(void)
 
     // Vertical direction
     dmin=1000000;
-    if (Velocity_Y()>5)      // Mind this! there is a reason for it...
+    if (Robust_Velocity_Y()>5)      // Mind this! there is a reason for it...
     {
         for (int i=0; i<5; i++)
             if (SONAR_DIST[i]>-1&&SONAR_DIST[i]<dmin) dmin=SONAR_DIST[i];
@@ -514,7 +605,7 @@ void Safety_Override(void)
             else Rotate(-Corrected_Angle());
             return;
         }
-        if (Velocity_Y()>2.0){
+        if (Robust_Velocity_Y()>2.0){
             Main_Thruster(0.0);
         }
         else
