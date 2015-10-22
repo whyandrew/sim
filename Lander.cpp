@@ -388,6 +388,7 @@ void Single_Thruster(double power)
     else if (!MT_OK && RT_OK)
     {
         Right_Thruster(power);
+        Left_Thruster(0); // Make sure left thruster isn't fighting right
     }
     else if (!LT_OK && MT_OK && !RT_OK)
     {
