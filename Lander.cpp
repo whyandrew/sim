@@ -313,7 +313,10 @@ double Corrected_Angle(void)
    Applicable only when angle sensor is functioning. */
 
     double corrected = Robust_Angle();
-    double tilt = (Position_X()>PLAT_X) ? 20.0 : -20.0;
+    double x_error = Robust_Position_X() - PLAT_X;
+    double k_x = 1.0;   // K value for proportional component in rocket aiming
+    double k_vx = 15.0; // K value for derivative (velocity) component
+    double tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
     double height_from_platform = PLAT_Y - Robust_Position_Y();
     double min_height = 30.0; // Minimum height at which angle adjustments
                             // apply. Below this, the lander is so close
