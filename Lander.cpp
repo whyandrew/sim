@@ -477,8 +477,9 @@ void Lander_Control(void)
 
     // Ensure we will be OVER the platform when we land
     if (fabs(PLAT_X-Robust_Position_X()) / fabs(Robust_Velocity_X()) > 
-        1.25 * fabs(PLAT_Y-Robust_Position_Y()) / fabs(Robust_Velocity_Y())) 
-    {
+        1.25 * fabs(PLAT_Y-Robust_Position_Y()) / fabs(Robust_Velocity_Y())
+        && (MT_OK && (RT_OK || LT_OK ))) // The VYlim = 0 was causing a vertical stalling
+    {                                    // issue in single thruster mode
         VYlim=0;
     }
 
