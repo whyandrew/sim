@@ -316,13 +316,51 @@ double Corrected_Angle(void)
     double x_error = Robust_Position_X() - PLAT_X;
     double k_x = 1.0;   // K value for proportional component in rocket aiming
     double k_vx = 15.0; // K value for derivative (velocity) component
-    double tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
+    
+    double tilt;
     double height_from_platform = PLAT_Y - Robust_Position_Y();
     double min_height = 30.0; // Minimum height at which angle adjustments
                             // apply. Below this, the lander is so close
                             // to the landing pad that it should reorient
                             // normally to avoid crashing.
-    //printf("%d %d %d\n", LT_OK, MT_OK, RT_OK);
+
+    /*********************************************************************************
+      Start of code mostly copy-pasted from Safety_Override()                        */
+    double DistLimit;
+    double Vmag;
+    double dmin;
+
+    Vmag=Robust_Velocity_X()*Robust_Velocity_X();
+    Vmag+=Robust_Velocity_Y()*Robust_Velocity_Y();
+
+    DistLimit=fmax(75,Vmag);
+    dmin=1000000;
+    if (Robust_Velocity_X()>0)
+    {
+        for (int i=5;i<14;i++)
+            if (SONAR_DIST[i]>-1&&SONAR_DIST[i]<dmin) dmin=SONAR_DIST[i];
+    }
+    else
+    {
+        for (int i=22;i<32;i++)
+            if (SONAR_DIST[i]>-1&&SONAR_DIST[i]<dmin) dmin=SONAR_DIST[i];
+    }
+    if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1)))
+    {
+        printf("Too close to a surface in the horizontal direction (single thruster): %f\n", dmin);
+        if (Robust_Velocity_X()>0){
+            tilt = 45.0;
+        }
+        else
+        {
+            tilt = -45.0;
+        }
+    }
+    else tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
+
+    /* End of code mostly copy-pasted from Safety_Override() 
+     *********************************************************************************/
+
     if (LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
     {   // Two adjacent thrusters (left and middle) are working, so
         // we want to orient so that they are -45 and +45 from 180 (down)
@@ -388,7 +426,7 @@ void Single_Thruster(double power)
     else if (!MT_OK && RT_OK)
     {
         Right_Thruster(power);
-        Left_Thruster(0); // Make sure left thruster isn't fighting right
+        Left_Thruster(0);
     }
     else if (!LT_OK && MT_OK && !RT_OK)
     {
@@ -507,6 +545,7 @@ void Lander_Control(void)
     // and set thrusters appropriately.
     if (Robust_Position_X()>PLAT_X)
     {   
+        
         if (MT_OK && (RT_OK || LT_OK )) // If the middle thruster and at least one of the others
         {                               // are functioning, use the original landing code
             // Lander is to the LEFT of the landing platform, use Right thrusters to move
@@ -632,8 +671,10 @@ void Safety_Override(void)
     // Determine whether we're too close for comfort. There is a reason
     // to have this distance limit modulated by horizontal speed...
     // what is it?
-    if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1)))
+    if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1))
+        && (MT_OK && (RT_OK || LT_OK )))
     { // Too close to a surface in the horizontal direction
+        printf("Too close to a surface in the horizontal direction (multi thruster): %f\n", dmin);
         if (Corrected_Angle()>1&&Corrected_Angle()<359)
         {
             if (Corrected_Angle()>=180) Rotate(360-Corrected_Angle());
