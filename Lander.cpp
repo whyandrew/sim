@@ -331,7 +331,7 @@ double Corrected_Angle(void)
         tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
     else
         tilt = emergency_tilt;
-    printf("tilt: %f emergency_tilt: %f\n", tilt, emergency_tilt);
+    //printf("tilt: %f emergency_tilt: %f\n", tilt, emergency_tilt);
 
 
     if (LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
@@ -646,7 +646,7 @@ void Safety_Override(void)
     // what is it?
     if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1)))
     { // Too close to a surface in the horizontal direction
-        printf("Too close to a surface in the horizontal direction: %f\n", dmin);
+        //printf("Too close to a surface in the horizontal direction: %f\n", dmin);
         if (Corrected_Angle()>1&&Corrected_Angle()<359)
         {
             if (Corrected_Angle()>=180) Rotate(360-Corrected_Angle());
@@ -663,8 +663,8 @@ void Safety_Override(void)
             }
             else
             {
-                emergency_tilt = 45.0;
-                Single_Thruster(1.0);
+                emergency_tilt = 90.0;
+                Single_Thruster(0.5);
             }
         }
         else
@@ -676,8 +676,8 @@ void Safety_Override(void)
             }
             else
             {
-                emergency_tilt = -45.0;
-                Single_Thruster(1.0);
+                emergency_tilt = -90.0;
+                Single_Thruster(0.5);
             }
         }
     }
