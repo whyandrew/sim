@@ -178,6 +178,8 @@ bool Sonar_OK = true;
 bool isRotating = false;
 double targetRotate = 0.0;
 
+double emergency_tilt = 0.0;
+
 
 // Robust APIs for all sensors
 double Robust_Velocity_X()
@@ -324,42 +326,13 @@ double Corrected_Angle(void)
                             // to the landing pad that it should reorient
                             // normally to avoid crashing.
 
-    /*********************************************************************************
-      Start of code mostly copy-pasted from Safety_Override()                        */
-    double DistLimit;
-    double Vmag;
-    double dmin;
 
-    Vmag=Robust_Velocity_X()*Robust_Velocity_X();
-    Vmag+=Robust_Velocity_Y()*Robust_Velocity_Y();
-
-    DistLimit=fmax(75,Vmag);
-    dmin=1000000;
-    if (Robust_Velocity_X()>0)
-    {
-        for (int i=5;i<14;i++)
-            if (SONAR_DIST[i]>-1&&SONAR_DIST[i]<dmin) dmin=SONAR_DIST[i];
-    }
+    if (emergency_tilt == 0)
+        tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
     else
-    {
-        for (int i=22;i<32;i++)
-            if (SONAR_DIST[i]>-1&&SONAR_DIST[i]<dmin) dmin=SONAR_DIST[i];
-    }
-    if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1)))
-    {
-        printf("Too close to a surface in the horizontal direction (single thruster): %f\n", dmin);
-        if (Robust_Velocity_X()>0){
-            tilt = 45.0;
-        }
-        else
-        {
-            tilt = -45.0;
-        }
-    }
-    else tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
+        tilt = emergency_tilt;
+    printf("tilt: %f emergency_tilt: %f\n", tilt, emergency_tilt);
 
-    /* End of code mostly copy-pasted from Safety_Override() 
-     *********************************************************************************/
 
     if (LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
     {   // Two adjacent thrusters (left and middle) are working, so
@@ -671,10 +644,9 @@ void Safety_Override(void)
     // Determine whether we're too close for comfort. There is a reason
     // to have this distance limit modulated by horizontal speed...
     // what is it?
-    if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1))
-        && (MT_OK && (RT_OK || LT_OK )))
+    if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1)))
     { // Too close to a surface in the horizontal direction
-        printf("Too close to a surface in the horizontal direction (multi thruster): %f\n", dmin);
+        printf("Too close to a surface in the horizontal direction: %f\n", dmin);
         if (Corrected_Angle()>1&&Corrected_Angle()<359)
         {
             if (Corrected_Angle()>=180) Rotate(360-Corrected_Angle());
@@ -682,15 +654,36 @@ void Safety_Override(void)
             return;
         }
 
-        if (Robust_Velocity_X()>0){
-            Right_Thruster(1.0);
-            Left_Thruster(0.0);
+        if (Robust_Velocity_X()>0)
+        {
+            if  (MT_OK && (RT_OK || LT_OK ))
+            {
+                Right_Thruster(1.0);
+                Left_Thruster(0.0);
+            }
+            else
+            {
+                emergency_tilt = 45.0;
+                Single_Thruster(1.0);
+            }
         }
         else
         {
-            Left_Thruster(1.0);
-            Right_Thruster(0.0);
+            if  (MT_OK && (RT_OK || LT_OK ))
+            {
+                Left_Thruster(1.0);
+                Right_Thruster(0.0);
+            }
+            else
+            {
+                emergency_tilt = -45.0;
+                Single_Thruster(1.0);
+            }
         }
+    }
+    else
+    {
+        emergency_tilt = 0.0;
     }
 
     // Vertical direction
