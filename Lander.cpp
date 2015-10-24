@@ -392,13 +392,15 @@ void Single_Thruster(double power)
        print an error message to stderror explaining that Single_Thruster
        is not intended for use in this situation.
     */
+    double side_thruster_power = fmin(1.0, (35.0/25.0) * power);
+
     if (LT_OK && !MT_OK && !RT_OK)
     {
-        Left_Thruster(power);
+        Left_Thruster(side_thruster_power);
     }
     else if (!MT_OK && RT_OK)
     {
-        Right_Thruster(power);
+        Right_Thruster(side_thruster_power);
         Left_Thruster(0);
     }
     else if (!LT_OK && MT_OK && !RT_OK)
@@ -663,7 +665,7 @@ void Safety_Override(void)
             }
             else
             {
-                emergency_tilt = 90.0;
+                emergency_tilt = 75.0;
                 Single_Thruster(0.5);
             }
         }
@@ -676,7 +678,7 @@ void Safety_Override(void)
             }
             else
             {
-                emergency_tilt = -90.0;
+                emergency_tilt = -75.0;
                 Single_Thruster(0.5);
             }
         }
