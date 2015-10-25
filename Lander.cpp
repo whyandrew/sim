@@ -468,29 +468,13 @@ void Lander_Control(void)
     // move faster, decrease speed limits as the module
     // approaches landing. You may need to be more conservative
     // with velocity limits when things fail.
-    if (fabs(Robust_Position_X()-PLAT_X)>200) 
-        VXlim=25;
-    else if (fabs(Robust_Position_X()-PLAT_X)>100) 
-        VXlim=15;
-    else 
-        VXlim=5;
+    if (fabs(Robust_Position_X()-PLAT_X)>200) VXlim=25;
+    else if (fabs(Robust_Position_X()-PLAT_X)>100) VXlim=15;
+    else VXlim=5;
 
-    if (PLAT_Y-Robust_Position_Y()>200) 
-        VYlim=-20;
-    else if (PLAT_Y-Robust_Position_Y()>100) 
-        VYlim=-10;  // These are negative because they
-    else 
-        VYlim=-4;                     // limit descent velocity
-
-    // For hard map with traps up high
-    // If we detect bottom but landing pad is still further away
-    double distBottom = Robust_Sonar(180);
-    if (distBottom > 0 && ((PLAT_Y-Robust_Position_Y()) - Robust_Sonar(180)) > (SONAR_RANGE/3)) 
-    {
-        printf("Moving up\n");
-        VYlim = 5; // need to go back up
-        VXlim = 5;
-    }
+    if (PLAT_Y-Robust_Position_Y()>200) VYlim=-20;
+    else if (PLAT_Y-Robust_Position_Y()>100) VYlim=-10;  // These are negative because they
+    else VYlim=-4;                     // limit descent velocity
 
     // Ensure we will be OVER the platform when we land
     if (fabs(PLAT_X-Robust_Position_X()) / fabs(Robust_Velocity_X()) > 
