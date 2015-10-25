@@ -178,6 +178,8 @@ bool Sonar_OK = true;
 bool isRotating = false;
 double targetRotate = 0.0;
 
+double emergency_tilt = 0.0;
+
 
 // Robust APIs for all sensors
 double Robust_Velocity_X()
@@ -316,13 +318,22 @@ double Corrected_Angle(void)
     double x_error = Robust_Position_X() - PLAT_X;
     double k_x = 1.0;   // K value for proportional component in rocket aiming
     double k_vx = 15.0; // K value for derivative (velocity) component
-    double tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
+    
+    double tilt;
     double height_from_platform = PLAT_Y - Robust_Position_Y();
     double min_height = 30.0; // Minimum height at which angle adjustments
                             // apply. Below this, the lander is so close
                             // to the landing pad that it should reorient
                             // normally to avoid crashing.
-    //printf("%d %d %d\n", LT_OK, MT_OK, RT_OK);
+
+
+    if (emergency_tilt == 0)
+        tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
+    else
+        tilt = emergency_tilt;
+    //printf("tilt: %f emergency_tilt: %f\n", tilt, emergency_tilt);
+
+
     if (LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
     {   // Two adjacent thrusters (left and middle) are working, so
         // we want to orient so that they are -45 and +45 from 180 (down)
@@ -381,14 +392,16 @@ void Single_Thruster(double power)
        print an error message to stderror explaining that Single_Thruster
        is not intended for use in this situation.
     */
+    double side_thruster_power = fmin(1.0, (35.0/25.0) * power);
+
     if (LT_OK && !MT_OK && !RT_OK)
     {
-        Left_Thruster(power);
+        Left_Thruster(side_thruster_power);
     }
     else if (!MT_OK && RT_OK)
     {
-        Right_Thruster(power);
-        Left_Thruster(0); // Make sure left thruster isn't fighting right
+        Right_Thruster(side_thruster_power);
+        Left_Thruster(0);
     }
     else if (!LT_OK && MT_OK && !RT_OK)
     {
@@ -507,6 +520,7 @@ void Lander_Control(void)
     // and set thrusters appropriately.
     if (Robust_Position_X()>PLAT_X)
     {   
+        
         if (MT_OK && (RT_OK || LT_OK )) // If the middle thruster and at least one of the others
         {                               // are functioning, use the original landing code
             // Lander is to the LEFT of the landing platform, use Right thrusters to move
@@ -634,6 +648,7 @@ void Safety_Override(void)
     // what is it?
     if (dmin<DistLimit*fmax(.25,fmin(fabs(Robust_Velocity_X())/5.0,1)))
     { // Too close to a surface in the horizontal direction
+        //printf("Too close to a surface in the horizontal direction: %f\n", dmin);
         if (Corrected_Angle()>1&&Corrected_Angle()<359)
         {
             if (Corrected_Angle()>=180) Rotate(360-Corrected_Angle());
@@ -641,15 +656,36 @@ void Safety_Override(void)
             return;
         }
 
-        if (Robust_Velocity_X()>0){
-            Right_Thruster(1.0);
-            Left_Thruster(0.0);
+        if (Robust_Velocity_X()>0)
+        {
+            if  (MT_OK && (RT_OK || LT_OK ))
+            {
+                Right_Thruster(1.0);
+                Left_Thruster(0.0);
+            }
+            else
+            {
+                emergency_tilt = 75.0;
+                Single_Thruster(0.5);
+            }
         }
         else
         {
-            Left_Thruster(1.0);
-            Right_Thruster(0.0);
+            if  (MT_OK && (RT_OK || LT_OK ))
+            {
+                Left_Thruster(1.0);
+                Right_Thruster(0.0);
+            }
+            else
+            {
+                emergency_tilt = -75.0;
+                Single_Thruster(0.5);
+            }
         }
+    }
+    else
+    {
+        emergency_tilt = 0.0;
     }
 
     // Vertical direction
