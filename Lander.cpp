@@ -210,6 +210,7 @@ struct State
     double angle;
     double sonar[36];
     double range; // RangeDist()};
+}
 
 struct State *recent_states[NUM_RECENT_STATES];
 
