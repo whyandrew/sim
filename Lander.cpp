@@ -209,10 +209,133 @@ struct State
     double pos_y;
     double angle;
     double sonar[36];
-    double range; // RangeDist()};
-}
+    double range; // RangeDist()
+};
 
 struct State *recent_states[NUM_RECENT_STATES];
+
+// Functions to update the current State struct
+
+void Update_Velocity_X()
+{
+    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
+    double sum = 0.0;
+    double minimum = 0.0;
+    double maximum = 0.0;
+    double curr_reading;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        curr_reading = Velocity_X();
+        sum += curr_reading;
+        maximum = fmax(maximum, curr_reading);
+        minimum = fmin(minimum, curr_reading);
+    }
+    printf("Update_Velocity_X: min %f max %f diff %f\n",
+           minimum, maximum, maximum - minimum);
+    if (true) // TODO: replace w/(maximum - minimum < ???), indicating a functioning sensor
+    {
+        recent_states[state_idx]->vel_x_OK = true;
+        recent_states[state_idx]->vel_x = (sum / NUMSAMPLES);
+    }
+    else
+    {
+        recent_states[state_idx]->vel_x_OK = false;
+        recent_states[state_idx]->vel_x = 0;// TODO: replace w/ calculation from past values
+    }
+}
+
+void Update_Velocity_Y()
+{
+    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
+    double sum = 0.0;
+    double minimum = 0.0;
+    double maximum = 0.0;
+    double curr_reading;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        curr_reading = Velocity_Y();
+        sum += curr_reading;
+        maximum = fmax(maximum, curr_reading);
+        minimum = fmin(minimum, curr_reading);
+    }
+    printf("Update_Velocity_Y: min %f max %f diff %f\n",
+           minimum, maximum, maximum - minimum);
+    if (true) // TODO: replace w/(maximum - minimum < ???), indicating a functioning sensor
+    {
+        recent_states[state_idx]->vel_y_OK = true;
+        recent_states[state_idx]->vel_y = (sum / NUMSAMPLES);
+    }
+    else
+    {
+        recent_states[state_idx]->vel_y_OK = false;
+        recent_states[state_idx]->vel_y = 0;// TODO: replace w/ calculation from past values
+    }
+}
+
+void Update_Position_X()
+{
+    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
+    double sum = 0.0;
+    double minimum = 0.0;
+    double maximum = 0.0;
+    double curr_reading;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        curr_reading = Position_X();
+        sum += curr_reading;
+        maximum = fmax(maximum, curr_reading);
+        minimum = fmin(minimum, curr_reading);
+    }
+    printf("Update_Position_X: min %f max %f diff %f\n",
+           minimum, maximum, maximum - minimum);
+    if (true) // TODO: replace w/(maximum - minimum < ???), indicating a functioning sensor
+    {
+        recent_states[state_idx]->pos_x_OK = true;
+        recent_states[state_idx]->pos_x = (sum / NUMSAMPLES);
+    }
+    else
+    {
+        recent_states[state_idx]->pos_x_OK = false;
+        recent_states[state_idx]->pos_x = 0;// TODO: replace w/ calculation from past values
+    }
+}
+
+double Update_Position_Y()
+{
+    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
+    double sum = 0.0;
+    double minimum = 0.0;
+    double maximum = 0.0;
+    double curr_reading;
+    for (int i = 0; i < NUMSAMPLES; i++)
+    {
+        curr_reading = Position_Y();
+        sum += curr_reading;
+        maximum = fmax(maximum, curr_reading);
+        minimum = fmin(minimum, curr_reading);
+    }
+    printf("Update_Position_Y: min %f max %f diff %f\n",
+           minimum, maximum, maximum - minimum);
+    if (true) // TODO: replace w/(maximum - minimum < ???), indicating a functioning sensor
+    {
+        recent_states[state_idx]->pos_y_OK = true;
+        recent_states[state_idx]->pos_y = (sum / NUMSAMPLES);
+    }
+    else
+    {
+        recent_states[state_idx]->pos_y_OK = false;
+        recent_states[state_idx]->pos_y = 0;// TODO: replace w/ calculation from past values
+    }
+}
+
+void Log_sensors()
+{
+    /* Update state variables */
+    Update_Velocity_X();
+    Update_Velocity_Y();
+    Update_Position_X();
+    Update_Position_Y();
+}
 
 // Robust APIs for all sensors
 double Robust_Velocity_X()
@@ -515,7 +638,8 @@ void Lander_Control(void)
         {
             recent_states[i] = (struct State *)calloc(sizeof(struct State), 1);
         }
-    } 
+    }
+    Log_sensors(); 
     frame_count++;
 
     // Set velocity limits depending on distance to platform.
