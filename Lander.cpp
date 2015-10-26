@@ -185,12 +185,23 @@ unsigned long frame_count = 0;
 
 struct State
 {
-    bool vel_x_OK; // Velocity_X()
-    bool vel_y_OK; // Velocity_Y()
-    bool pos_x_OK;
-    bool pos_y_OK;
+    bool thr_L_OK; // Left thruster OK
+    bool thr_M_OK; // Middle thruster OK
+    bool thr_R_OK; // Right thruster OK
+ 
+    bool vel_x_OK; // Velocity_X() OK
+    bool vel_y_OK; // Velocity_Y() OK
+    bool pos_x_OK; // Position_X() OK
+    bool pos_y_OK; // Position_Y() OK
     bool Angle_OK;
     bool Sonar_OK;
+
+    double pow_L; // Left thruster power
+    double pow_M; // Middle thruster power
+    double pow_R; // Right thruster power
+
+    double rot_angle; // Angle of last rotation call
+    unsigned long rot_frame; // Frame at which Rotate() was last called
 
     double vel_x;
     double vel_y;
@@ -198,7 +209,7 @@ struct State
     double pos_y;
     double angle;
     double sonar[36];
-};
+    double range; // RangeDist()};
 
 struct State *recent_states[NUM_RECENT_STATES];
 
