@@ -160,10 +160,12 @@
 */
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "Lander_Control.h"
 
 // Constants
 #define NUMSAMPLES 40
+#define NUM_RECENT_STATES 10
 
 // Sensor states variables
 // True == working ok; False == something's wrong!
@@ -179,7 +181,26 @@ bool isRotating = false;
 double targetRotate = 0.0;
 
 double emergency_tilt = 0.0;
+unsigned long frame_count = 0;
 
+struct State
+{
+    bool vel_x_OK; // Velocity_X()
+    bool vel_y_OK; // Velocity_Y()
+    bool pos_x_OK;
+    bool pos_y_OK;
+    bool Angle_OK;
+    bool Sonar_OK;
+
+    double vel_x;
+    double vel_y;
+    double pos_x;
+    double pos_y;
+    double angle;
+    double sonar[36];
+};
+
+struct State *recent_states[NUM_RECENT_STATES];
 
 // Robust APIs for all sensors
 double Robust_Velocity_X()
@@ -475,6 +496,15 @@ void Lander_Control(void)
 
     double VXlim;
     double VYlim;
+    
+    if (frame_count == 0)
+    {
+        for (int i=0; i<NUM_RECENT_STATES; i++)
+        {
+            recent_states[i] = (struct State *)calloc(sizeof(struct State), 1);
+        }
+    } 
+    frame_count++;
 
     // Set velocity limits depending on distance to platform.
     // If the module is far from the platform allow it to
