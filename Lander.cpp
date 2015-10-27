@@ -166,8 +166,8 @@
 // Constants
 #define NUMSAMPLES 40
 #define NUM_RECENT_STATES 10
-#define MAX_VEL_DIFF 0.8  // Maximum span between velocity readings to be considered legit
-#define MAX_POS_DIFF 38.0 // Maximum span between position readings to be considered legit
+#define MAX_VEL_DIFF 2.0  // Maximum span between velocity readings to be considered legit
+#define MAX_POS_DIFF 50.0 // Maximum span between position readings to be considered legit
 
 // Sensor states variables
 // True == working ok; False == something's wrong!
@@ -245,15 +245,18 @@ void Update_Velocity_X()
     {
         recent_states[state_idx]->vel_x_OK = true;
         recent_states[state_idx]->vel_x = (sum / NUMSAMPLES);
+        Vx_OK = true;
     }
     else // Biggest span between values too high, reading suspect
     {
         recent_states[state_idx]->vel_x_OK = false;
         recent_states[state_idx]->vel_x = 0;// TODO: replace w/ calculation from past values
+        Vx_OK = false;
     }
-    printf("Update_Velocity_X:: min %f max %f diff %f\nseems legit? %s\n\n",
-           minimum, maximum, maximum - minimum,
-           recent_states[state_idx]->vel_x_OK ? "true" : "false");
+    // if (!Vx_OK)
+    //     printf("Update_Velocity_X:: min %f max %f diff %f\nseems legit? %s\n\n",
+    //        minimum, maximum, maximum - minimum,
+    //        recent_states[state_idx]->vel_x_OK ? "true" : "false");
 }
 
 void Update_Velocity_Y()
@@ -281,15 +284,18 @@ void Update_Velocity_Y()
     {
         recent_states[state_idx]->vel_y_OK = true;
         recent_states[state_idx]->vel_y = (sum / NUMSAMPLES);
+        Vy_OK = true;
     }
     else // Biggest span between values too high, reading suspect
     {
         recent_states[state_idx]->vel_y_OK = false;
         recent_states[state_idx]->vel_y = 0;// TODO: replace w/ calculation from past values
+        Vy_OK = false;
     }
-    printf("Update_Velocity_Y: min %f max %f diff %f\nseems legit? %s\n\n",
-           minimum, maximum, maximum - minimum,
-           recent_states[state_idx]->vel_y_OK ? "true" : "false");
+    // if (!Vy_OK)
+    //     printf("Update_Velocity_Y: min %f max %f diff %f\nseems legit? %s\n\n",
+    //        minimum, maximum, maximum - minimum,
+    //        recent_states[state_idx]->vel_y_OK ? "true" : "false");
 }
 
 void Update_Position_X()
@@ -319,15 +325,18 @@ void Update_Position_X()
     {
         recent_states[state_idx]->pos_x_OK = true;
         recent_states[state_idx]->pos_x = (sum / NUMSAMPLES);
+        PosX_OK = true;
     }
     else // Biggest span between values too high, reading suspect
     {
         recent_states[state_idx]->pos_x_OK = false;
         recent_states[state_idx]->pos_x = 0;// TODO: replace w/ calculation from past values
+        PosX_OK = false;
     }
-    printf("Update_Position_X: min %f max %f diff %f\nseems legit? %s\n\n",
-           minimum, maximum, maximum - minimum,
-           recent_states[state_idx]->pos_x_OK ? "true" : "false");
+    // if (!PosX_OK)
+    //     printf("Update_Position_X: min %f max %f diff %f\nseems legit? %s\n\n",
+    //        minimum, maximum, maximum - minimum,
+    //        recent_states[state_idx]->pos_x_OK ? "true" : "false");
 }
 
 double Update_Position_Y()
@@ -355,15 +364,18 @@ double Update_Position_Y()
     {
         recent_states[state_idx]->pos_y_OK = true;
         recent_states[state_idx]->pos_y = (sum / NUMSAMPLES);
+        PosY_OK = true;
     }
     else // Biggest span between values too high, reading suspect
     {
         recent_states[state_idx]->pos_y_OK = false;
         recent_states[state_idx]->pos_y = 0;// TODO: replace w/ calculation from past values
+        PosY_OK = false;
     }
-    printf("Update_Position_Y: min %f max %f diff %f\nseems legit? %s\n\n",
-           minimum, maximum, maximum - minimum,
-           recent_states[state_idx]->pos_y_OK ? "true" : "false");
+    // if (!PosY_OK)
+    //     printf("Update_Position_Y: min %f max %f diff %f\nseems legit? %s\n\n",
+    //        minimum, maximum, maximum - minimum,
+    //        recent_states[state_idx]->pos_y_OK ? "true" : "false");
 }
 
 void Log_sensors()
@@ -374,10 +386,10 @@ void Log_sensors()
 
     Update_Velocity_X();
     Update_Velocity_Y();
-    printf("\n");
+    //printf("\n");
     Update_Position_X();
     Update_Position_Y();
-    printf("\n\n******************************************************\n");
+    //printf("\n\n******************************************************\n");
 
     recent_states[state_idx]->thr_L_OK = LT_OK; 
     recent_states[state_idx]->thr_M_OK = MT_OK;
