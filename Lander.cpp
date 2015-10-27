@@ -496,15 +496,15 @@ double Robust_RangeDist()
     //RangeDist() never fails, and it appears to be always accurate... or is it?
 
     // RangeDist reads from the direction of the main thruster
-    if (Angle_OK)
+    double ret = 0.0;
+
+    for (int i = 0; i < NUMSAMPLES; i++)
     {
-        return RangeDist();
+        ret += RangeDist();
     }
-    else // if Angle sensor not working, don't really know where we're point at...
-    {
-        //TODO .... what to do?!
-        return RangeDist();
-    }
+
+    ret = ret / NUMSAMPLES;
+    return ret;
 }
 
 void Update_Angle()
