@@ -168,6 +168,7 @@
 #define NUM_RECENT_STATES 10
 #define MAX_VEL_DIFF 2.0  // Maximum span between velocity readings to be considered legit
 #define MAX_POS_DIFF 50.0 // Maximum span between position readings to be considered legit
+#define MAX_ANGLE_DIFF 20.0
 
 // Sensor states variables
 // True == working ok; False == something's wrong!
@@ -195,8 +196,8 @@ struct State
     bool vel_y_OK; // Velocity_Y() OK
     bool pos_x_OK; // Position_X() OK
     bool pos_y_OK; // Position_Y() OK
-    bool Angle_OK;
-    bool Sonar_OK;
+    bool angle_OK;
+    bool sonar_OK;
 
     double pow_L; // Left thruster power
     double pow_M; // Middle thruster power
@@ -339,7 +340,7 @@ void Update_Position_X()
     //        recent_states[state_idx]->pos_x_OK ? "true" : "false");
 }
 
-double Update_Position_Y()
+void Update_Position_Y()
 {
     int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
     double sum = 0.0;
@@ -376,24 +377,6 @@ double Update_Position_Y()
     //     printf("Update_Position_Y: min %f max %f diff %f\nseems legit? %s\n\n",
     //        minimum, maximum, maximum - minimum,
     //        recent_states[state_idx]->pos_y_OK ? "true" : "false");
-}
-
-void Log_sensors()
-{
-    /* Update state variables */
-
-    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
-
-    Update_Velocity_X();
-    Update_Velocity_Y();
-    //printf("\n");
-    Update_Position_X();
-    Update_Position_Y();
-    //printf("\n\n******************************************************\n");
-
-    recent_states[state_idx]->thr_L_OK = LT_OK; 
-    recent_states[state_idx]->thr_M_OK = MT_OK;
-    recent_states[state_idx]->thr_R_OK = RT_OK;
 }
 
 // Robust APIs for all sensors
@@ -486,12 +469,16 @@ double Robust_Angle()
     // on a single call into Lander_Control.
     // This makes averaging easy since we won't be averaging, say, 359 and 1 degrees
     double ret = 0.0;
-    for (int i = 0; i < NUMSAMPLES; i++)
+    int counter;
+
+    counter = (Angle_OK)? NUMSAMPLES: NUMSAMPLES * 100;
+
+    for (int i = 0; i < counter; i++)
     {
         ret += Angle();
     }
 
-    ret = ret / NUMSAMPLES;
+    ret = ret / counter;
 
     while (ret >= 360.0)
     {
@@ -520,6 +507,57 @@ double Robust_RangeDist()
     }
 }
 
+void Update_Angle()
+{
+    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
+    //Check for bad Angle sensor
+    if (Angle_OK)
+    {
+        double min = 999999.0;
+        double max = -9999999.0;
+        double reading;
+        for (int i = 0; i < NUMSAMPLES; i++)
+        {
+            reading = Angle();
+            if (reading > max)
+            {
+                max = reading; 
+            }
+            if (reading < min)
+            {
+                min = reading;
+            }
+        }
+
+        if ((max - min) > MAX_ANGLE_DIFF)
+        {
+            Angle_OK = false;
+        }
+    }
+
+    recent_states[state_idx]->angle_OK = Angle_OK;
+    // Angle sensor still works when "faulty"... just alot more noise.
+    recent_states[state_idx]->angle = Robust_Angle();
+}
+
+void Log_sensors()
+{
+    /* Update state variables */
+
+    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
+
+    Update_Velocity_X();
+    Update_Velocity_Y();
+    //printf("\n");
+    Update_Position_X();
+    Update_Position_Y();
+    Update_Angle();
+    //printf("\n\n******************************************************\n");
+
+    recent_states[state_idx]->thr_L_OK = LT_OK; 
+    recent_states[state_idx]->thr_M_OK = MT_OK;
+    recent_states[state_idx]->thr_R_OK = RT_OK;
+}
 
 double Corrected_Angle(void)
 {
@@ -661,11 +699,18 @@ void Lander_Control(void)
     //         Robust_Angle(), Robust_RangeDist() );
     // }
 
-    for (int i = 10; i < 27; i++)
+    // for (int i = 10; i < 27; i++)
+    // {
+    //     printf("%3.1f, ",            SONAR_DIST[i]);
+    // }
+    // printf("\n");
+
+    for (int i = 0; i<10; i++)
     {
-        printf("%3.1f, ",            SONAR_DIST[i]);
+        printf("Angle:%f; Robust_Angle:%f\n",
+            Angle(), Robust_Angle() );
     }
-    printf("\n");
+    printf(".........\n");
 
     double VXlim;
     double VYlim;
