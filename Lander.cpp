@@ -166,6 +166,8 @@
 // Constants
 #define NUMSAMPLES 40
 #define NUM_RECENT_STATES 10
+#define MAX_VEL_DIFF 0.8  // Maximum span between velocity readings to be considered legit
+#define MAX_POS_DIFF 38.0 // Maximum span between position readings to be considered legit
 
 // Sensor states variables
 // True == working ok; False == something's wrong!
@@ -223,25 +225,35 @@ void Update_Velocity_X()
     double minimum = 0.0;
     double maximum = 0.0;
     double curr_reading;
+
     for (int i = 0; i < NUMSAMPLES; i++)
     {
         curr_reading = Velocity_X();
+        
+        if (i==0)
+        {
+            minimum = maximum = curr_reading;
+        }
+        else
+        {
+            maximum = fmax(maximum, curr_reading);
+            minimum = fmin(minimum, curr_reading);
+        }
         sum += curr_reading;
-        maximum = fmax(maximum, curr_reading);
-        minimum = fmin(minimum, curr_reading);
     }
-    printf("Update_Velocity_X: min %f max %f diff %f\n",
-           minimum, maximum, maximum - minimum);
-    if (true) // TODO: replace w/(maximum - minimum < ???), indicating a functioning sensor
+    if (maximum - minimum < MAX_VEL_DIFF) // Biggest span between values seems fine
     {
         recent_states[state_idx]->vel_x_OK = true;
         recent_states[state_idx]->vel_x = (sum / NUMSAMPLES);
     }
-    else
+    else // Biggest span between values too high, reading suspect
     {
         recent_states[state_idx]->vel_x_OK = false;
         recent_states[state_idx]->vel_x = 0;// TODO: replace w/ calculation from past values
     }
+    printf("Update_Velocity_X:: min %f max %f diff %f\nseems legit? %s\n\n",
+           minimum, maximum, maximum - minimum,
+           recent_states[state_idx]->vel_x_OK ? "true" : "false");
 }
 
 void Update_Velocity_Y()
@@ -254,22 +266,30 @@ void Update_Velocity_Y()
     for (int i = 0; i < NUMSAMPLES; i++)
     {
         curr_reading = Velocity_Y();
+        if (i==0)
+        {
+            minimum = maximum = curr_reading;
+        }
+        else
+        {
+            maximum = fmax(maximum, curr_reading);
+            minimum = fmin(minimum, curr_reading);
+        }
         sum += curr_reading;
-        maximum = fmax(maximum, curr_reading);
-        minimum = fmin(minimum, curr_reading);
     }
-    printf("Update_Velocity_Y: min %f max %f diff %f\n",
-           minimum, maximum, maximum - minimum);
-    if (true) // TODO: replace w/(maximum - minimum < ???), indicating a functioning sensor
+    if (maximum - minimum < MAX_VEL_DIFF) // Biggest span between values seems fine
     {
         recent_states[state_idx]->vel_y_OK = true;
         recent_states[state_idx]->vel_y = (sum / NUMSAMPLES);
     }
-    else
+    else // Biggest span between values too high, reading suspect
     {
         recent_states[state_idx]->vel_y_OK = false;
         recent_states[state_idx]->vel_y = 0;// TODO: replace w/ calculation from past values
     }
+    printf("Update_Velocity_Y: min %f max %f diff %f\nseems legit? %s\n\n",
+           minimum, maximum, maximum - minimum,
+           recent_states[state_idx]->vel_y_OK ? "true" : "false");
 }
 
 void Update_Position_X()
@@ -279,25 +299,35 @@ void Update_Position_X()
     double minimum = 0.0;
     double maximum = 0.0;
     double curr_reading;
-    for (int i = 0; i < NUMSAMPLES; i++)
+     for (int i = 0; i < NUMSAMPLES; i++)
     {
         curr_reading = Position_X();
+        
+        if (i==0)
+        {
+            minimum = maximum = curr_reading;
+        }
+        else
+        {
+            maximum = fmax(maximum, curr_reading);
+            minimum = fmin(minimum, curr_reading);
+        }
         sum += curr_reading;
-        maximum = fmax(maximum, curr_reading);
-        minimum = fmin(minimum, curr_reading);
     }
-    printf("Update_Position_X: min %f max %f diff %f\n",
-           minimum, maximum, maximum - minimum);
-    if (true) // TODO: replace w/(maximum - minimum < ???), indicating a functioning sensor
+
+    if (maximum - minimum < MAX_POS_DIFF) // Biggest span between values seems fine
     {
         recent_states[state_idx]->pos_x_OK = true;
         recent_states[state_idx]->pos_x = (sum / NUMSAMPLES);
     }
-    else
+    else // Biggest span between values too high, reading suspect
     {
         recent_states[state_idx]->pos_x_OK = false;
         recent_states[state_idx]->pos_x = 0;// TODO: replace w/ calculation from past values
     }
+    printf("Update_Position_X: min %f max %f diff %f\nseems legit? %s\n\n",
+           minimum, maximum, maximum - minimum,
+           recent_states[state_idx]->pos_x_OK ? "true" : "false");
 }
 
 double Update_Position_Y()
@@ -310,22 +340,30 @@ double Update_Position_Y()
     for (int i = 0; i < NUMSAMPLES; i++)
     {
         curr_reading = Position_Y();
+        if (i==0)
+        {
+            minimum = maximum = curr_reading;
+        }
+        else
+        {
+            maximum = fmax(maximum, curr_reading);
+            minimum = fmin(minimum, curr_reading);
+        }
         sum += curr_reading;
-        maximum = fmax(maximum, curr_reading);
-        minimum = fmin(minimum, curr_reading);
     }
-    printf("Update_Position_Y: min %f max %f diff %f\n",
-           minimum, maximum, maximum - minimum);
-    if (true) // TODO: replace w/(maximum - minimum < ???), indicating a functioning sensor
+    if (maximum - minimum < MAX_POS_DIFF) // Biggest span between values seems fine
     {
         recent_states[state_idx]->pos_y_OK = true;
         recent_states[state_idx]->pos_y = (sum / NUMSAMPLES);
     }
-    else
+    else // Biggest span between values too high, reading suspect
     {
         recent_states[state_idx]->pos_y_OK = false;
         recent_states[state_idx]->pos_y = 0;// TODO: replace w/ calculation from past values
     }
+    printf("Update_Position_Y: min %f max %f diff %f\nseems legit? %s\n\n",
+           minimum, maximum, maximum - minimum,
+           recent_states[state_idx]->pos_y_OK ? "true" : "false");
 }
 
 void Log_sensors()
@@ -333,8 +371,10 @@ void Log_sensors()
     /* Update state variables */
     Update_Velocity_X();
     Update_Velocity_Y();
+    printf("\n");
     Update_Position_X();
     Update_Position_Y();
+    printf("\n\n******************************************************\n");
 }
 
 // Robust APIs for all sensors
