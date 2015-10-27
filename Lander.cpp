@@ -216,12 +216,12 @@ struct State
 };
 
 struct State *recent_states[NUM_RECENT_STATES];
+struct State *prev_state, *current_state;
 
 // Functions to update the current State struct
 
 void Update_Velocity_X()
 {
-    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
     double sum = 0.0;
     double minimum = 0.0;
     double maximum = 0.0;
@@ -244,25 +244,24 @@ void Update_Velocity_X()
     }
     if (maximum - minimum < MAX_VEL_DIFF) // Biggest span between values seems fine
     {
-        recent_states[state_idx]->vel_x_OK = true;
-        recent_states[state_idx]->vel_x = (sum / NUMSAMPLES);
+        current_state->vel_x_OK = true;
+        current_state->vel_x = (sum / NUMSAMPLES);
         Vx_OK = true;
     }
     else // Biggest span between values too high, reading suspect
     {
-        recent_states[state_idx]->vel_x_OK = false;
-        recent_states[state_idx]->vel_x = 0;// TODO: replace w/ calculation from past values
+        current_state->vel_x_OK = false;
+        current_state->vel_x = 0;// TODO: replace w/ calculation from past values
         Vx_OK = false;
     }
     // if (!Vx_OK)
     //     printf("Update_Velocity_X:: min %f max %f diff %f\nseems legit? %s\n\n",
     //        minimum, maximum, maximum - minimum,
-    //        recent_states[state_idx]->vel_x_OK ? "true" : "false");
+    //        current_state->vel_x_OK ? "true" : "false");
 }
 
 void Update_Velocity_Y()
 {
-    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
     double sum = 0.0;
     double minimum = 0.0;
     double maximum = 0.0;
@@ -283,25 +282,24 @@ void Update_Velocity_Y()
     }
     if (maximum - minimum < MAX_VEL_DIFF) // Biggest span between values seems fine
     {
-        recent_states[state_idx]->vel_y_OK = true;
-        recent_states[state_idx]->vel_y = (sum / NUMSAMPLES);
+        current_state->vel_y_OK = true;
+        current_state->vel_y = (sum / NUMSAMPLES);
         Vy_OK = true;
     }
     else // Biggest span between values too high, reading suspect
     {
-        recent_states[state_idx]->vel_y_OK = false;
-        recent_states[state_idx]->vel_y = 0;// TODO: replace w/ calculation from past values
+        current_state->vel_y_OK = false;
+        current_state->vel_y = 0;// TODO: replace w/ calculation from past values
         Vy_OK = false;
     }
     // if (!Vy_OK)
     //     printf("Update_Velocity_Y: min %f max %f diff %f\nseems legit? %s\n\n",
     //        minimum, maximum, maximum - minimum,
-    //        recent_states[state_idx]->vel_y_OK ? "true" : "false");
+    //        current_state->vel_y_OK ? "true" : "false");
 }
 
 void Update_Position_X()
 {
-    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
     double sum = 0.0;
     double minimum = 0.0;
     double maximum = 0.0;
@@ -324,25 +322,24 @@ void Update_Position_X()
 
     if (maximum - minimum < MAX_POS_DIFF) // Biggest span between values seems fine
     {
-        recent_states[state_idx]->pos_x_OK = true;
-        recent_states[state_idx]->pos_x = (sum / NUMSAMPLES);
+        current_state->pos_x_OK = true;
+        current_state->pos_x = (sum / NUMSAMPLES);
         PosX_OK = true;
     }
     else // Biggest span between values too high, reading suspect
     {
-        recent_states[state_idx]->pos_x_OK = false;
-        recent_states[state_idx]->pos_x = 0;// TODO: replace w/ calculation from past values
+        current_state->pos_x_OK = false;
+        current_state->pos_x = 0;// TODO: replace w/ calculation from past values
         PosX_OK = false;
     }
     // if (!PosX_OK)
     //     printf("Update_Position_X: min %f max %f diff %f\nseems legit? %s\n\n",
     //        minimum, maximum, maximum - minimum,
-    //        recent_states[state_idx]->pos_x_OK ? "true" : "false");
+    //        current_state->pos_x_OK ? "true" : "false");
 }
 
 void Update_Position_Y()
 {
-    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
     double sum = 0.0;
     double minimum = 0.0;
     double maximum = 0.0;
@@ -363,20 +360,20 @@ void Update_Position_Y()
     }
     if (maximum - minimum < MAX_POS_DIFF) // Biggest span between values seems fine
     {
-        recent_states[state_idx]->pos_y_OK = true;
-        recent_states[state_idx]->pos_y = (sum / NUMSAMPLES);
+        current_state->pos_y_OK = true;
+        current_state->pos_y = (sum / NUMSAMPLES);
         PosY_OK = true;
     }
     else // Biggest span between values too high, reading suspect
     {
-        recent_states[state_idx]->pos_y_OK = false;
-        recent_states[state_idx]->pos_y = 0;// TODO: replace w/ calculation from past values
+        current_state->pos_y_OK = false;
+        current_state->pos_y = 0;// TODO: replace w/ calculation from past values
         PosY_OK = false;
     }
     // if (!PosY_OK)
     //     printf("Update_Position_Y: min %f max %f diff %f\nseems legit? %s\n\n",
     //        minimum, maximum, maximum - minimum,
-    //        recent_states[state_idx]->pos_y_OK ? "true" : "false");
+    //        current_state->pos_y_OK ? "true" : "false");
 }
 
 // Robust APIs for all sensors
@@ -509,7 +506,6 @@ double Robust_RangeDist()
 
 void Update_Angle()
 {
-    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
     //Check for bad Angle sensor
     if (Angle_OK)
     {
@@ -535,16 +531,15 @@ void Update_Angle()
         }
     }
 
-    recent_states[state_idx]->angle_OK = Angle_OK;
+    current_state->angle_OK = Angle_OK;
     // Angle sensor still works when "faulty"... just alot more noise.
-    recent_states[state_idx]->angle = Robust_Angle();
+    current_state->angle = Robust_Angle();
 }
 
 void Log_sensors()
 {
     /* Update state variables */
 
-    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
 
     Update_Velocity_X();
     Update_Velocity_Y();
@@ -554,9 +549,35 @@ void Log_sensors()
     Update_Angle();
     //printf("\n\n******************************************************\n");
 
-    recent_states[state_idx]->thr_L_OK = LT_OK; 
-    recent_states[state_idx]->thr_M_OK = MT_OK;
-    recent_states[state_idx]->thr_R_OK = RT_OK;
+    current_state->thr_L_OK = LT_OK;
+    if (!LT_OK || prev_state==NULL)
+    {
+        current_state->pow_L = 0;
+    }
+    else
+    {
+        current_state->pow_L = prev_state->pow_L;
+    }
+
+    current_state->thr_M_OK = MT_OK;
+    if (!MT_OK || prev_state==NULL)
+    {
+        current_state->pow_M = 0;
+    }
+    else
+    {
+        current_state->pow_M = prev_state->pow_M;
+    }
+
+    current_state->thr_R_OK = RT_OK;
+    if (!RT_OK || prev_state==NULL)
+    {
+        current_state->pow_R = 0;
+    }
+    else
+    {
+        current_state->pow_R = prev_state->pow_R;
+    }
 }
 
 double Corrected_Angle(void)
@@ -628,6 +649,38 @@ double Corrected_Angle(void)
     while (corrected < 0)
         corrected += 360.0;
     return corrected;
+}
+    /************************************************************
+    *
+    *                   THRUSTER FUNCTIONS
+    * 
+    *************************************************************/
+
+void Logged_Left_Thruster(double power)
+{
+    if (LT_OK)
+    {
+        Left_Thruster(power);
+        current_state->pow_L = power;
+    }
+}
+
+void Logged_Main_Thruster(double power)
+{
+    if (MT_OK)
+    {
+        Main_Thruster(power);
+        current_state->pow_M = power;
+    }
+}
+
+void Logged_Right_Thruster(double power)
+{
+    if (RT_OK)
+    {
+        Right_Thruster(power);
+        current_state->pow_R = power;
+    }
 }
 
 void Single_Thruster(double power)
@@ -782,7 +835,13 @@ void Lander_Control(void)
         {
             recent_states[i] = (struct State *)calloc(sizeof(struct State), 1);
         }
+        prev_state = NULL;
     }
+    else
+    {
+        prev_state = current_state;
+    }
+    current_state = recent_states[frame_count % NUM_RECENT_STATES];
     Log_sensors(); 
     frame_count++;
 
