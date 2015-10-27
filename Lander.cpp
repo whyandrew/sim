@@ -667,6 +667,67 @@ void Single_Thruster(double power)
     }
 }
 
+    /************************************************************
+    *                   LASER ROTATIONAL SCAN
+    * 
+    * Function for doing a 360 degree laser scan of surroundings.
+    *************************************************************/
+
+/* Globals */
+bool currently_scanning = false;
+int  scanning_step;   //    Which step in the scanning process (occurs over
+                      //    multiple frames through many calls to this function)
+static const double velocity_tolerance = 0;
+static const double target_y_velocity = 0;
+double initial_angle;
+
+void Laser_Rot_Scan(void)
+{
+    if (!currently_scanning) // A new scan has been initiated
+    {
+        currently_scanning = true;
+        scanning_step = 0;
+    }
+    switch(scanning_step)
+    {
+        case 0:
+            /* Step 0: Bring y velocity to something slightly 
+             * positive, and x velocity close to 0. */
+
+            // Out of tolerance range for our target velocities 
+            if (fabs(Robust_Velocity_X()) > velocity_tolerance ||
+                fabs(Robust_Velocity_Y() - target_y_velocity) > velocity_tolerance)
+            {
+                // TODO: Apply corresponding power to rockets before break
+                break;
+            }
+            else scanning_step++; // At target velocity, so we move on
+                                  // to the next step.
+        case 1:
+            /* Step 1: Initialize rotation and record what angle 
+               we started at */
+            initial_angle = Robust_Angle();
+            Rotate(365); // A little farther to account for rotation noise
+            scanning_step++;
+
+        case 2:
+            /* Step 2: Take readings as we rotate until we return to 
+               the original angle. Once back to the original angle,
+               the scan is over. 
+               */
+            if (false) // TODO: create some condition that is true 
+            {          // if the scan hasn't been completed yet
+                // TODO: Take the readings as we go
+            }
+            else // Scan is complete
+            {
+                Rotate(0);
+                currently_scanning = false;
+                scanning_step = 0;
+            }
+    }
+}
+
 void Lander_Control(void)
 {
      /*
