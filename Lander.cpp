@@ -369,12 +369,19 @@ double Update_Position_Y()
 void Log_sensors()
 {
     /* Update state variables */
+
+    int state_idx = frame_count % NUM_RECENT_STATES; // index of current state
+
     Update_Velocity_X();
     Update_Velocity_Y();
     printf("\n");
     Update_Position_X();
     Update_Position_Y();
     printf("\n\n******************************************************\n");
+
+    recent_states[state_idx]->thr_L_OK = LT_OK; 
+    recent_states[state_idx]->thr_M_OK = MT_OK;
+    recent_states[state_idx]->thr_R_OK = RT_OK;
 }
 
 // Robust APIs for all sensors
