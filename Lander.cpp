@@ -879,8 +879,8 @@ void Lander_Control(void)
     frame_count++;
     if (Sonar_Suspect && (currently_scanning || frames_since_scan > SCAN_FREQUENCY))
     {
-        Laser_Rot_Scan();
-        return;
+        //Laser_Rot_Scan();
+        //return;
     }
     else frames_since_scan++;
 
