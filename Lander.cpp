@@ -523,19 +523,28 @@ void Update_Angle()
 
 void Update_Accel()
 {
-    double x_accel, y_accel, accel_theta, accel_magnitude;
+    double lander_LR_accel, lander_UpDown_accel, accel_theta, accel_magnitude;
     /* Calculate x and y acceleration from thrusters as if lander was upright */
-    x_accel = current_state->pow_L * LT_ACCEL;
-    x_accel -= current_state->pow_R * RT_ACCEL;
-    y_accel = current_state->pow_M * MT_ACCEL;
+    lander_LR_accel = current_state->pow_L * LT_ACCEL;
+    lander_LR_accel -= current_state->pow_R * RT_ACCEL;
+    lander_UpDown_accel = current_state->pow_M * MT_ACCEL;
     /* Convert accel from cartesian to polar coordinates*/
-    accel_theta = y_accel !=0.0 ? atan2(y_accel, x_accel) : 0.0;
-    accel_magnitude = sqrt(x_accel * x_accel + y_accel * y_accel);
-    /* Correct theta for actual orientation */
-    accel_theta -= current_state->angle * PI / 180; // TODO: check if += or -= is correct
+    // accel_theta = lander_UpDown_accel !=0.0 ? atan2(lander_UpDown_accel, lander_LR_accel) : 0.0;
+    // accel_magnitude = sqrt(lander_LR_accel * lander_LR_accel + lander_UpDown_accel * lander_UpDown_accel);
+    // /* Correct theta for actual orientation */
+    // accel_theta -= current_state->angle * PI / 180; // TODO: check if += or -= is correct
     
-    current_state->accel_x = accel_magnitude * cos(accel_theta);
-    current_state->accel_y = accel_magnitude * sin(accel_theta) - G_ACCEL;
+    // current_state->accel_x = accel_magnitude * cos(accel_theta);
+    // current_state->accel_y = accel_magnitude * sin(accel_theta) - G_ACCEL;
+    
+    current_state->accel_x = lander_LR_accel * cos(-current_state->angle * PI / 180.0);
+    current_state->accel_y = -(lander_LR_accel * sin(current_state->angle * PI / 180.0));
+
+    current_state->accel_x += lander_UpDown_accel * sin(current_state->angle * PI / 180.0);
+    current_state->accel_y += lander_UpDown_accel * cos(current_state->angle * PI / 180.0);
+
+    current_state->accel_y -= G_ACCEL;
+    
     printf("Update_Accel: pow_L %f pow_M %f pow_R %f angle %f\n accel_x %f accel_y %f\n\n",
            current_state->pow_L, current_state->pow_M, current_state->pow_R,
            current_state->angle, current_state->accel_x, current_state->accel_y);
