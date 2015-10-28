@@ -259,7 +259,8 @@ void Update_Velocity_X()
     else // Biggest span between values too high, reading suspect
     {
         current_state->vel_x_OK = false;
-        current_state->vel_x = 0;// TODO: replace w/ calculation from past values
+        current_state->vel_x = frame_count > 0 ? (prev_state->vel_x
+                                                  + prev_state->accel_x * T_STEP) : 0;
         Vx_OK = false;
     }
 }
@@ -293,7 +294,8 @@ void Update_Velocity_Y()
     else // Biggest span between values too high, reading suspect
     {
         current_state->vel_y_OK = false;
-        current_state->vel_y = 0;// TODO: replace w/ calculation from past values
+        current_state->vel_y =  frame_count > 0 ? (prev_state->vel_y
+                                                   + prev_state->accel_y * T_STEP) : 0;
         Vy_OK = false;
     }
 }
@@ -329,7 +331,9 @@ void Update_Position_X()
     else // Biggest span between values too high, reading suspect
     {
         current_state->pos_x_OK = false;
-        current_state->pos_x = 0;// TODO: replace w/ calculation from past values
+        current_state->pos_x =  frame_count > 0 ? (prev_state->pos_x
+                                        + prev_state->vel_x * T_STEP
+                       + 0.5 * prev_state->accel_x * T_STEP * T_STEP) : 0;
         PosX_OK = false;
     }
 }
@@ -363,7 +367,9 @@ void Update_Position_Y()
     else // Biggest span between values too high, reading suspect
     {
         current_state->pos_y_OK = false;
-        current_state->pos_y = 0;// TODO: replace w/ calculation from past values
+        current_state->pos_y =  frame_count > 0 ? (prev_state->pos_y
+                                        + prev_state->vel_y * T_STEP
+                       + 0.5 * prev_state->accel_y * T_STEP * T_STEP) : 0;
         PosY_OK = false;
     }
 }
@@ -375,42 +381,22 @@ void Update_Position_Y()
 // 
 double Robust_Velocity_X()
 {
-    double sum = 0.0;
-    for (int i = 0; i < NUMSAMPLES; i++)
-    {
-        sum += Velocity_X();
-    }
-    return (sum / NUMSAMPLES);
+    return current_state->vel_x;
 }
 
 double Robust_Velocity_Y()
 {
-    double sum = 0.0;
-    for (int i = 0; i < NUMSAMPLES; i++)
-    {
-        sum += Velocity_Y();
-    }
-    return (sum / NUMSAMPLES);
+    return current_state->vel_y;
 }
 
 double Robust_Position_X()
 {
-    double sum = 0.0;
-    for (int i = 0; i < NUMSAMPLES; i++)
-    {
-        sum += Position_X();
-    }
-    return (sum / NUMSAMPLES);
+    return current_state->pos_x;
 }
 
 double Robust_Position_Y()
 {
-    double sum = 0.0;
-    for (int i = 0; i < NUMSAMPLES; i++)
-    {
-        sum += Position_Y();
-    }
-    return (sum / NUMSAMPLES);
+    return current_state->pos_y;
 }
 
 // Angle from 0 to 360 degrees w.r.t vertical up
@@ -809,9 +795,7 @@ void Laser_Rot_Scan(void)
 void Predict_State(struct State *source_state, int frames_elapsed)
 {
     double t = ((double)frames_elapsed) * T_STEP; // Convert to "time units"
-    predicted_state->pos_x = (source_state->pos_x
-                              + source_state->vel_x * t
-                              + 0.5 * source_state->accel_x * t * t);
+
     predicted_state->pos_y = (source_state->pos_y
                               + source_state->vel_y * t
                               + 0.5 * source_state->accel_y * t * t);
