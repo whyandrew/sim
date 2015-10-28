@@ -186,6 +186,12 @@ double targetRotate = 0.0;
 double emergency_tilt = 0.0;
 unsigned long frame_count = 0;
 
+    /************************************************************
+    *                             STATE
+    * 
+    *            State of the whole system for one frame.
+    *************************************************************/
+
 struct State
 {
     bool thr_L_OK; // Left thruster OK
@@ -361,8 +367,12 @@ void Update_Position_Y()
         PosY_OK = false;
     }
 }
+    /************************************************************
+    *                 Robust APIs for all sensors
+    * 
+    *************************************************************/
 
-// Robust APIs for all sensors
+// 
 double Robust_Velocity_X()
 {
     double sum = 0.0;
@@ -520,6 +530,25 @@ void Update_Angle()
     current_state->angle_OK = Angle_OK;
     // Angle sensor still works when "faulty"... just alot more noise.
     current_state->angle = Robust_Angle();
+}
+
+void Update_Accel()
+{
+    const double accel_correction_factor = 222.0; // Frames per time unit (???)
+    double x_accel, y_accel, accel_theta, accel_magnitude;
+    /* Calculate x and y acceleration from thrusters as if lander was upright */
+    x_accel = current_state->pow_L * LT_ACCEL;
+    x_accel -= current_state->pow_R * RT_ACCEL;
+    y_accel = current_state->pow_M * LT_ACCEL;
+    /* Convert accel from cartesian to polar coordinates*/
+    accel_theta = x_accel !=0.0 ? atan(y_accel/x_accel) : 0.0;
+    accel_magnitude = sqrt(x_accel * x_accel + y_accel * y_accel);
+    /* Correct theta for actual orientation */
+    accel_theta -= current_state->angle; // TODO: check if += or -= is correct
+    
+    current_state->accel_x = accel_magnitude * cos(accel_theta);
+    current_state->accel_y = ((accel_magnitude * sin(accel_theta) - G_ACCEL)
+                              / accel_correction_factor);
 }
 
 void Log_sensors()
@@ -709,7 +738,7 @@ void Single_Thruster(double power)
     /************************************************************
     *                   LASER ROTATIONAL SCAN
     * 
-    * Function for doing a 360 degree laser scan of surroundings.
+    *         360 degree laser scan of surroundings.
     *************************************************************/
 
 /* Globals */
@@ -789,6 +818,10 @@ void Predict_State(struct State *source_state, int frames_elapsed)
     predicted_state->vel_y = (source_state->vel_y
                               + source_state->accel_y * t);
 }
+    /************************************************************
+    *                       LANDER CONTROL
+    * 
+    *************************************************************/
 
 void Lander_Control(void)
 {
@@ -967,6 +1000,10 @@ void Lander_Control(void)
             Single_Thruster(0);
     }
 }
+    /************************************************************
+    *                       SAFETY OVERRIDE
+    * 
+    *************************************************************/
 
 void Safety_Override(void)
 {
