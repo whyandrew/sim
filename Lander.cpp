@@ -526,7 +526,7 @@ void Update_Accel()
     x_accel -= current_state->pow_R * RT_ACCEL;
     y_accel = current_state->pow_M * MT_ACCEL;
     /* Convert accel from cartesian to polar coordinates*/
-    accel_theta = y_accel !=0.0 ? atan(-x_accel/y_accel) : 0.0;
+    accel_theta = y_accel !=0.0 ? atan2(y_accel, x_accel) : 0.0;
     accel_magnitude = sqrt(x_accel * x_accel + y_accel * y_accel);
     /* Correct theta for actual orientation */
     accel_theta -= current_state->angle * PI / 180; // TODO: check if += or -= is correct
