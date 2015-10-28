@@ -529,7 +529,7 @@ void Update_Accel()
     accel_theta = y_accel !=0.0 ? atan(-x_accel/y_accel) : 0.0;
     accel_magnitude = sqrt(x_accel * x_accel + y_accel * y_accel);
     /* Correct theta for actual orientation */
-    accel_theta -= current_state->angle; // TODO: check if += or -= is correct
+    accel_theta -= current_state->angle * PI / 180; // TODO: check if += or -= is correct
     
     current_state->accel_x = accel_magnitude * cos(accel_theta);
     current_state->accel_y = accel_magnitude * sin(accel_theta) - G_ACCEL;
