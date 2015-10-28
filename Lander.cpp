@@ -593,6 +593,7 @@ void Log_sensors()
     {
         current_state->pow_R = prev_state->pow_R;
     }
+    Update_Accel();
 }
 
 double Corrected_Angle(void)
