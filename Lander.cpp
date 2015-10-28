@@ -783,27 +783,7 @@ void Laser_Rot_Scan(void)
             }
     }
 }
-    /************************************************************
-    *                       PREDICT STATE
-    * 
-    *  Given a pointer to a State struct and a number of frames,
-    *  update predicted_state with a prediction of x and y
-    *  position and velocity values after the passage of that
-    *  many frames.
-    *************************************************************/
 
-void Predict_State(struct State *source_state, int frames_elapsed)
-{
-    double t = ((double)frames_elapsed) * T_STEP; // Convert to "time units"
-
-    predicted_state->pos_y = (source_state->pos_y
-                              + source_state->vel_y * t
-                              + 0.5 * source_state->accel_y * t * t);
-    predicted_state->vel_x = (source_state->vel_x
-                              + source_state->accel_x * t);
-    predicted_state->vel_y = (source_state->vel_y
-                              + source_state->accel_y * t);
-}
     /************************************************************
     *                       LANDER CONTROL
     * 
@@ -872,24 +852,6 @@ void Lander_Control(void)
     }
     current_state = recent_states[frame_count % NUM_RECENT_STATES];
     Log_sensors();
-    if (frame_count > 10)
-    {
-        printf("Before moving:\t\tx:%f\ty:%f\tvelocity: x:%f\ty:%f\n",
-                 prev_state->pos_x, prev_state->pos_y,
-                 prev_state->vel_x, prev_state->vel_y);
-        Predict_State(prev_state, 1);
-        printf("Actual position:\tx:%f\ty:%f\tvelocity: x:%f\ty:%f\n",
-                 current_state->pos_x, current_state->pos_y,
-                 current_state->vel_x, current_state->vel_y);
-        printf("Estimated position:\tx:%f\ty:%f\tvelocity: x:%f\ty:%f\n",
-                 predicted_state->pos_x, predicted_state->pos_y,
-                 predicted_state->vel_x, predicted_state->vel_y);
-       printf("Error factor:\t\tx:%f%%\ty:%f%%\tvelocity: x:%f%%\ty:%f%%\n\n",
-                 100.0 * predicted_state->pos_x / current_state->pos_x,
-                 100.0 * predicted_state->pos_y / current_state->pos_y,
-                 100.0 * predicted_state->vel_x / current_state->vel_x,
-                 100.0 * predicted_state->vel_y / current_state->vel_y);
-    }
     frame_count++;
 
     // Set velocity limits depending on distance to platform.
