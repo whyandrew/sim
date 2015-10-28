@@ -75,9 +75,9 @@
     - Control of the lander is via the following functions
           (which are noisy!)
 
-      Main_Thruster(double power);   - Sets main thurster power in [0 1], 0 is off
-      Left_Thruster(double power);   - Sets left thruster power in [0 1]
-      Right_Thruster(double power);  - Sets right thruster power in [0 1]
+      Logged_Main_Thruster(double power);   - Sets main thurster power in [0 1], 0 is off
+      Logged_Left_Thruster(double power);   - Sets left thruster power in [0 1]
+      Logged_Right_Thruster(double power);  - Sets right thruster power in [0 1]
       Rotate(double angle);      - Rotates module 'angle' degrees clockwise
                        (ccw if angle is negative) from current
                                            orientation (i.e. rotation is not w.r.t.
@@ -534,21 +534,22 @@ void Update_Angle()
 
 void Update_Accel()
 {
-    const double accel_correction_factor = 222.0; // Frames per time unit (???)
     double x_accel, y_accel, accel_theta, accel_magnitude;
     /* Calculate x and y acceleration from thrusters as if lander was upright */
     x_accel = current_state->pow_L * LT_ACCEL;
     x_accel -= current_state->pow_R * RT_ACCEL;
     y_accel = current_state->pow_M * LT_ACCEL;
     /* Convert accel from cartesian to polar coordinates*/
-    accel_theta = x_accel !=0.0 ? atan(y_accel/x_accel) : 0.0;
+    accel_theta = y_accel !=0.0 ? atan(-x_accel/y_accel) : 0.0;
     accel_magnitude = sqrt(x_accel * x_accel + y_accel * y_accel);
     /* Correct theta for actual orientation */
     accel_theta -= current_state->angle; // TODO: check if += or -= is correct
     
     current_state->accel_x = accel_magnitude * cos(accel_theta);
-    current_state->accel_y = ((accel_magnitude * sin(accel_theta) - G_ACCEL)
-                              / accel_correction_factor);
+    current_state->accel_y = accel_magnitude * sin(accel_theta) - G_ACCEL;
+    printf("Update_Accel: pow_L %f pow_M %f pow_R %f angle %f\n accel_x %f accel_y %f\n\n",
+           current_state->pow_L, current_state->pow_M, current_state->pow_R,
+           current_state->angle, current_state->accel_x, current_state->accel_y);
 }
 
 void Log_sensors()
@@ -718,16 +719,16 @@ void Single_Thruster(double power)
 
     if (LT_OK && !MT_OK && !RT_OK)
     {
-        Left_Thruster(side_thruster_power);
+        Logged_Left_Thruster(side_thruster_power);
     }
     else if (!MT_OK && RT_OK)
     {
-        Right_Thruster(side_thruster_power);
-        Left_Thruster(0);
+        Logged_Right_Thruster(side_thruster_power);
+        Logged_Left_Thruster(0);
     }
     else if (!LT_OK && MT_OK && !RT_OK)
     {
-        Main_Thruster(power);
+        Logged_Main_Thruster(power);
     }
     else
     {
@@ -807,7 +808,7 @@ void Laser_Rot_Scan(void)
 
 void Predict_State(struct State *source_state, int frames_elapsed)
 {
-    double t = ((double)frames_elapsed) / 40.0; // Convert to "time units"
+    double t = ((double)frames_elapsed) * T_STEP; // Convert to "time units"
     predicted_state->pos_x = (source_state->pos_x
                               + source_state->vel_x * t
                               + 0.5 * source_state->accel_x * t * t);
@@ -862,12 +863,12 @@ void Lander_Control(void)
     // }
     // printf("\n");
 
-    for (int i = 0; i<10; i++)
-    {
-        printf("Angle:%f; Robust_Angle:%f\n",
-            Angle(), Robust_Angle() );
-    }
-    printf(".........\n");
+    //for (int i = 0; i<10; i++)
+    //{
+    //    printf("Angle:%f; Robust_Angle:%f\n",
+    //        Angle(), Robust_Angle() );
+    //}
+    //printf(".........\n");
 
     double VXlim;
     double VYlim;
@@ -886,7 +887,25 @@ void Lander_Control(void)
         prev_state = current_state;
     }
     current_state = recent_states[frame_count % NUM_RECENT_STATES];
-    Log_sensors(); 
+    Log_sensors();
+    if (frame_count > 10)
+    {
+        printf("Before moving:\t\tx:%f\ty:%f\tvelocity: x:%f\ty:%f\n",
+                 prev_state->pos_x, prev_state->pos_y,
+                 prev_state->vel_x, prev_state->vel_y);
+        Predict_State(prev_state, 1);
+        printf("Actual position:\tx:%f\ty:%f\tvelocity: x:%f\ty:%f\n",
+                 current_state->pos_x, current_state->pos_y,
+                 current_state->vel_x, current_state->vel_y);
+        printf("Estimated position:\tx:%f\ty:%f\tvelocity: x:%f\ty:%f\n",
+                 predicted_state->pos_x, predicted_state->pos_y,
+                 predicted_state->vel_x, predicted_state->vel_y);
+       printf("Error factor:\t\tx:%f%%\ty:%f%%\tvelocity: x:%f%%\ty:%f%%\n\n",
+                 100.0 * predicted_state->pos_x / current_state->pos_x,
+                 100.0 * predicted_state->pos_y / current_state->pos_y,
+                 100.0 * predicted_state->vel_x / current_state->vel_x,
+                 100.0 * predicted_state->vel_y / current_state->vel_y);
+    }
     frame_count++;
 
     // Set velocity limits depending on distance to platform.
@@ -946,14 +965,14 @@ void Lander_Control(void)
         {                               // are functioning, use the original landing code
             // Lander is to the LEFT of the landing platform, use Right thrusters to move
             // lander to the left.
-            Left_Thruster(0);   // Make sure we're not fighting ourselves here!
+            Logged_Left_Thruster(0);   // Make sure we're not fighting ourselves here!
             if (Robust_Velocity_X()>(-VXlim)) 
-                Right_Thruster((VXlim+fmin(0,Robust_Velocity_X()))/VXlim);
+                Logged_Right_Thruster((VXlim+fmin(0,Robust_Velocity_X()))/VXlim);
             else
             {
                 // Exceeded velocity limit, brake
-                Right_Thruster(0);
-                Left_Thruster(fabs(VXlim-Robust_Velocity_X()));
+                Logged_Right_Thruster(0);
+                Logged_Left_Thruster(fabs(VXlim-Robust_Velocity_X()));
             }
         }
         else
@@ -967,13 +986,13 @@ void Lander_Control(void)
         if (MT_OK && (RT_OK || LT_OK )) // If the middle thruster and at least one of the others
         {
             // Lander is to the RIGHT of the landing platform, opposite from above
-            Right_Thruster(0);
+            Logged_Right_Thruster(0);
             if (Robust_Velocity_X()<VXlim) 
-                Left_Thruster((VXlim-fmax(0,Robust_Velocity_X()))/VXlim);
+                Logged_Left_Thruster((VXlim-fmax(0,Robust_Velocity_X()))/VXlim);
             else
             {
-                Left_Thruster(0);
-                Right_Thruster(fabs(VXlim-Robust_Velocity_X()));
+                Logged_Left_Thruster(0);
+                Logged_Right_Thruster(fabs(VXlim-Robust_Velocity_X()));
             }
         }
         else
@@ -989,9 +1008,9 @@ void Lander_Control(void)
     if (MT_OK && (RT_OK || LT_OK ))
     {
         if (Robust_Velocity_Y()<VYlim) 
-            Main_Thruster(1.0);
+            Logged_Main_Thruster(1.0);
         else 
-            Main_Thruster(0);
+            Logged_Main_Thruster(0);
     }
     else
     {
@@ -1096,8 +1115,8 @@ void Safety_Override(void)
         {
             if  (MT_OK && (RT_OK || LT_OK ))
             {
-                Right_Thruster(1.0);
-                Left_Thruster(0.0);
+                Logged_Right_Thruster(1.0);
+                Logged_Left_Thruster(0.0);
             }
             else
             {
@@ -1109,8 +1128,8 @@ void Safety_Override(void)
         {
             if  (MT_OK && (RT_OK || LT_OK ))
             {
-                Left_Thruster(1.0);
-                Right_Thruster(0.0);
+                Logged_Left_Thruster(1.0);
+                Logged_Right_Thruster(0.0);
             }
             else
             {
@@ -1153,13 +1172,13 @@ void Safety_Override(void)
             return;
         }
         if (Robust_Velocity_Y()>2.0){
-            Main_Thruster(0.0);
+            Logged_Main_Thruster(0.0);
         }
         else
         {
             if (MT_OK && (RT_OK || LT_OK ))
             {
-                Main_Thruster(1.0);
+                Logged_Main_Thruster(1.0);
             }
             else
             {
