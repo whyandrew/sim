@@ -538,7 +538,7 @@ void Update_Accel()
     /* Calculate x and y acceleration from thrusters as if lander was upright */
     x_accel = current_state->pow_L * LT_ACCEL;
     x_accel -= current_state->pow_R * RT_ACCEL;
-    y_accel = current_state->pow_M * LT_ACCEL;
+    y_accel = current_state->pow_M * MT_ACCEL;
     /* Convert accel from cartesian to polar coordinates*/
     accel_theta = y_accel !=0.0 ? atan(-x_accel/y_accel) : 0.0;
     accel_magnitude = sqrt(x_accel * x_accel + y_accel * y_accel);
