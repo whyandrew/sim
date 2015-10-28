@@ -256,10 +256,6 @@ void Update_Velocity_X()
         current_state->vel_x = 0;// TODO: replace w/ calculation from past values
         Vx_OK = false;
     }
-    // if (!Vx_OK)
-    //     printf("Update_Velocity_X:: min %f max %f diff %f\nseems legit? %s\n\n",
-    //        minimum, maximum, maximum - minimum,
-    //        current_state->vel_x_OK ? "true" : "false");
 }
 
 void Update_Velocity_Y()
@@ -294,10 +290,6 @@ void Update_Velocity_Y()
         current_state->vel_y = 0;// TODO: replace w/ calculation from past values
         Vy_OK = false;
     }
-    // if (!Vy_OK)
-    //     printf("Update_Velocity_Y: min %f max %f diff %f\nseems legit? %s\n\n",
-    //        minimum, maximum, maximum - minimum,
-    //        current_state->vel_y_OK ? "true" : "false");
 }
 
 void Update_Position_X()
@@ -334,10 +326,6 @@ void Update_Position_X()
         current_state->pos_x = 0;// TODO: replace w/ calculation from past values
         PosX_OK = false;
     }
-    // if (!PosX_OK)
-    //     printf("Update_Position_X: min %f max %f diff %f\nseems legit? %s\n\n",
-    //        minimum, maximum, maximum - minimum,
-    //        current_state->pos_x_OK ? "true" : "false");
 }
 
 void Update_Position_Y()
@@ -372,10 +360,6 @@ void Update_Position_Y()
         current_state->pos_y = 0;// TODO: replace w/ calculation from past values
         PosY_OK = false;
     }
-    // if (!PosY_OK)
-    //     printf("Update_Position_Y: min %f max %f diff %f\nseems legit? %s\n\n",
-    //        minimum, maximum, maximum - minimum,
-    //        current_state->pos_y_OK ? "true" : "false");
 }
 
 // Robust APIs for all sensors
