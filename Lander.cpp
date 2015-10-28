@@ -663,27 +663,36 @@ void Logged_Left_Thruster(double power)
 {
     if (LT_OK)
     {
+        power = fmin(power, 1.0); 
+        power = fmax(power, 0.0); 
         Left_Thruster(power);
         current_state->pow_L = power;
     }
+    else power = 0.0;
 }
 
 void Logged_Main_Thruster(double power)
 {
     if (MT_OK)
     {
+        power = fmin(power, 1.0); 
+        power = fmax(power, 0.0); 
         Main_Thruster(power);
         current_state->pow_M = power;
     }
+    else power = 0.0;
 }
 
 void Logged_Right_Thruster(double power)
 {
     if (RT_OK)
     {
+        power = fmin(power, 1.0); 
+        power = fmax(power, 0.0); 
         Right_Thruster(power);
         current_state->pow_R = power;
     }
+    else power = 0.0;
 }
 
 void Single_Thruster(double power)
