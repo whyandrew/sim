@@ -169,6 +169,7 @@
 #define MAX_VEL_DIFF 2.0  // Maximum span between velocity readings to be considered legit
 #define MAX_POS_DIFF 50.0 // Maximum span between position readings to be considered legit
 #define MAX_ANGLE_DIFF 20.0
+#define SCAN_FREQUENCY 200 // Max # of frames between rotary scans
 
 // Sensor states variables
 // True == working ok; False == something's wrong!
@@ -178,6 +179,7 @@ bool PosX_OK = true;
 bool PosY_OK = true;
 bool Angle_OK = true;
 bool Sonar_OK = true;
+bool Sonar_Suspect = false;
 
 // Control states
 bool isRotating = false;
@@ -185,6 +187,7 @@ double targetRotate = 0.0;
 
 double emergency_tilt = 0.0;
 unsigned long frame_count = 0;
+int frames_since_scan = 0;
 
     /************************************************************
     *                             STATE
@@ -581,6 +584,16 @@ void Log_sensors()
         current_state->pow_R = prev_state->pow_R;
     }
     Update_Accel();
+    
+    bool all_minus_ones = true;
+    for (int i=0; i<36; i++)
+    {
+        if (SONAR_DIST[i] != -1)
+        {
+            all_minus_ones = false;
+        }
+    }
+    Sonar_Suspect = all_minus_ones;
 }
 
 double Corrected_Angle(void)
@@ -748,6 +761,7 @@ double initial_angle;
 
 void Laser_Rot_Scan(void)
 {
+    printf("Laser_Rot_Scan Step %d\n", scanning_step);
     if (!currently_scanning) // A new scan has been initiated
     {
         currently_scanning = true;
@@ -788,6 +802,7 @@ void Laser_Rot_Scan(void)
             {
                 Rotate(0);
                 currently_scanning = false;
+                frames_since_scan = 0;
                 scanning_step = 0;
             }
     }
@@ -862,6 +877,12 @@ void Lander_Control(void)
     current_state = recent_states[frame_count % NUM_RECENT_STATES];
     Log_sensors();
     frame_count++;
+    if (Sonar_Suspect && (currently_scanning || frames_since_scan > SCAN_FREQUENCY))
+    {
+        Laser_Rot_Scan();
+        return;
+    }
+    else frames_since_scan++;
 
     // Set velocity limits depending on distance to platform.
     // If the module is far from the platform allow it to
