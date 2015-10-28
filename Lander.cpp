@@ -206,6 +206,8 @@ struct State
     double rot_angle; // Angle of last rotation call
     unsigned long rot_frame; // Frame at which Rotate() was last called
 
+    double accel_x;
+    double accel_y;
     double vel_x;
     double vel_y;
     double pos_x;
@@ -216,7 +218,7 @@ struct State
 };
 
 struct State *recent_states[NUM_RECENT_STATES];
-struct State *prev_state, *current_state;
+struct State *prev_state, *current_state, *predicted_state;
 
 // Functions to update the current State struct
 
@@ -780,6 +782,29 @@ void Laser_Rot_Scan(void)
             }
     }
 }
+    /************************************************************
+    *                       PREDICT STATE
+    * 
+    *  Given a pointer to a State struct and a number of frames,
+    *  update predicted_state with a prediction of x and y
+    *  position and velocity values after the passage of that
+    *  many frames.
+    *************************************************************/
+
+void Predict_State(struct State *source_state, int frames_elapsed)
+{
+    double t = ((double)frames_elapsed) / 40.0; // Convert to "time units"
+    predicted_state->pos_x = (source_state->pos_x
+                              + source_state->vel_x * t
+                              + 0.5 * source_state->accel_x * t * t);
+    predicted_state->pos_y = (source_state->pos_y
+                              + source_state->vel_y * t
+                              + 0.5 * source_state->accel_y * t * t);
+    predicted_state->vel_x = (source_state->vel_x
+                              + source_state->accel_x * t);
+    predicted_state->vel_y = (source_state->vel_y
+                              + source_state->accel_y * t);
+}
 
 void Lander_Control(void)
 {
@@ -835,6 +860,7 @@ void Lander_Control(void)
         {
             recent_states[i] = (struct State *)calloc(sizeof(struct State), 1);
         }
+        predicted_state = (struct State *)calloc(sizeof(struct State), 1);
         prev_state = NULL;
     }
     else
