@@ -171,6 +171,9 @@
 #define MAX_ANGLE_DIFF 20.0
 #define SCAN_FREQUENCY 200 // Max # of frames between rotary scans
 
+// Speed/Acceleration
+#define VEL_FACTOR 0.025// At velocity=1.0, lander moves 0.025 pixel per frame
+
 // Sensor states variables
 // True == working ok; False == something's wrong!
 bool Vx_OK = true; // Velocity_X()
@@ -334,9 +337,11 @@ void Update_Position_X()
     else // Biggest span between values too high, reading suspect
     {
         current_state->pos_x_OK = false;
-        current_state->pos_x =  frame_count > 0 ? (prev_state->pos_x
-                                        + prev_state->vel_x * T_STEP
-                       + 0.5 * prev_state->accel_x * T_STEP * T_STEP) : 0;
+        // current_state->pos_x =  frame_count > 0 ? (prev_state->pos_x
+        //                                 + prev_state->vel_x * T_STEP
+        //                + 0.5 * prev_state->accel_x * T_STEP * T_STEP) : 0;
+        current_state->pos_x = (frame_count > 0)? (prev_state->pos_x 
+            + (prev_state->vel_x * VEL_FACTOR)) : 0;
         PosX_OK = false;
     }
 }
@@ -370,9 +375,11 @@ void Update_Position_Y()
     else // Biggest span between values too high, reading suspect
     {
         current_state->pos_y_OK = false;
-        current_state->pos_y =  frame_count > 0 ? (prev_state->pos_y
-                                        + prev_state->vel_y * T_STEP
-                       + 0.5 * prev_state->accel_y * T_STEP * T_STEP) : 0;
+        // current_state->pos_y =  frame_count > 0 ? (prev_state->pos_y
+        //                                 + prev_state->vel_y * T_STEP
+        //                + 0.5 * prev_state->accel_y * T_STEP * T_STEP) : 0;
+        current_state->pos_y =  (frame_count > 0) ? (prev_state->pos_y
+                                        + prev_state->vel_y * VEL_FACTOR) : 0;
         PosY_OK = false;
     }
 }
