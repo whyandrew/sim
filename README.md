@@ -2,14 +2,13 @@
 Sensor failures
 
 4 - Horizontal velocity sensor: *(OK NOW)*
-  Can't land, need better calculation probably.
+  Usually seems to land fine.
 
 5 - Vertical velocity sensor:
   Comes close to landing but won't lower itself down the last little bit.
 
 6 - Horizontal position sensor: *(OK NOW)*
-  Maybe this can be improved but it seems like a long shot to get it to
-  find the landing pad without it.
+  Usually seems to land fine.
 
 7 - Vertical position sensor:
   Comes close to landing but won't lower itself down the last little bit.
