@@ -188,6 +188,8 @@ double min_dist_R = INITIAL_MIN_DIST; // Minimum distance to terrain (right)
 // Control states
 bool isRotating = false;
 bool past_halfway = false;
+unsigned long last_scan_frame = 0;
+double last_scan_x, last_scan_y;
 double targetRotate = 0.0;
 
 double emergency_tilt = 0.0;
@@ -923,6 +925,7 @@ void Lander_Control(void)
 
     if (!currently_scanning)
     {
+        printf("Not currently_scanning\n");
         if (Corrected_Angle()>(1)&&Corrected_Angle()<359)
         {
             if (Corrected_Angle()>=180) 
@@ -934,11 +937,12 @@ void Lander_Control(void)
     }
     else // is currently scanning, don't "fix" angle as it's rotating
     {
-        if (Robust_Angle() >= 180)
+        if (!past_halfway && fabs(Robust_Angle() - 180) < 5.0)
         {
+            printf("past_halfway\n");
             past_halfway = true;
         }
-        if (past_halfway && fabs(Robust_Angle()) < 3.0)
+        if (past_halfway && fabs(Robust_Angle()) < 5.0)
         {
             endFrame = frame_count;
             printf("Frames: %d\n", (int)(endFrame - startFrame));
@@ -946,32 +950,35 @@ void Lander_Control(void)
             currently_scanning = false;
             past_halfway = false;
             isRotating = false;
+            last_scan_x = current_state->pos_x;
+            last_scan_y = current_state->pos_x;
             printf("Scan results:\n\tMin dist up:\t%f\n\tMin dist right:\t%f\n"
                    "\tMin dist down:\t%f\n\tMin dist left:\t%f\n",
                    min_dist_U, min_dist_R, min_dist_D, min_dist_L);
         }
         else if (isRotating && RangeDist() != -1)
         {
+            Rotate(720);
             angle = Robust_Angle();
             printf("Scanning angle:%f\treading:%f", angle, RangeDist());
             if (angle >= 315 || angle < 45)
             { // Laser pointing within "Down" quadrant
-                printf("Down quadrant\n");
+                printf("\tDown quadrant\n");
                 min_dist_D = fmin(min_dist_D, RangeDist());
             }
             else if (angle >= 45 && angle < 135)
             { // Laser pointing within "Left" quadrant
-                printf("Left quadrant\n");
+                printf("\tLeft quadrant\n");
                 min_dist_L = fmin(min_dist_L, RangeDist());
             }
             else if (angle >= 135 && angle < 225)
             { // Laser pointing within "Up" quadrant
-                printf("Up quadrant\n");
+                printf("\tUp quadrant\n");
                 min_dist_U = fmin(min_dist_U, RangeDist());
             }
             else if (angle >= 225 && angle < 315)
             { // Laser pointing within "Right" quadrant
-                printf("Right quadrant\n");
+                printf("\tRight quadrant\n");
                 min_dist_R = fmin(min_dist_R, RangeDist());
             }
             return;
@@ -986,7 +993,7 @@ void Lander_Control(void)
             Left_Thruster(0);
             Right_Thruster(0);
             isRotating = true;
-            Rotate(380);
+            Rotate(10000000);
             startFrame = frame_count;
             return;
         }
@@ -1130,6 +1137,8 @@ void Safety_Override(void)
     // safely land the craft)
     if (fabs(PLAT_X-Robust_Position_X()) < 150 && fabs(PLAT_Y-Robust_Position_Y()) < 150) 
         return;
+    if (currently_scanning) 
+        return;
 
     // Determine the closest surfaces in the direction
     // of motion. This is done by checking the sonar
@@ -1142,6 +1151,7 @@ void Safety_Override(void)
     if (Robust_Velocity_X()>0)
     {
         dmin = min_dist_R;
+        dmin -= (current_state->pos_x - last_scan_x);
         //for (int i=5;i<14;i++)
         //    if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < dmin) 
         //        dmin = SONAR_DIST[i];
@@ -1149,6 +1159,7 @@ void Safety_Override(void)
     else
     {
         dmin = min_dist_L;
+        dmin += (current_state->pos_x - last_scan_x);
         //for (int i=22;i<32;i++)
         //    if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < dmin) 
         //        dmin = SONAR_DIST[i];
@@ -1205,6 +1216,8 @@ void Safety_Override(void)
     if (Robust_Velocity_Y()>5)      // Mind this! there is a reason for it...
     {
         dmin = min_dist_U;
+        dmin -= (current_state->pos_y - last_scan_y);
+
         //for (int i=0; i<5; i++)
         //    if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
         //        dmin = SONAR_DIST[i];
@@ -1216,6 +1229,8 @@ void Safety_Override(void)
     else
     {
         dmin = min_dist_D;
+        dmin += (current_state->pos_y - last_scan_y);
+
         //for (int i=14; i<22; i++)
         //    if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
         //        dmin = SONAR_DIST[i];
