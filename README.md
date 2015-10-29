@@ -25,10 +25,9 @@ Sensor failures
   
   min distance reading over 225-315 degrees -> min_dist_left
   
-  Then maybe adjust these for displacement since scan.
-  
   min distance reading over 315-45 degrees -> min_dist_up
   
+  Then maybe adjust these for displacement since scan.
 
 Lander_Control easy.ppm 3 2 4 6 - without left thruster & no pos_x vel_x, always crash just to right. Use single thruster mode instead?
 
