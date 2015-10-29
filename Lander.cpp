@@ -172,7 +172,8 @@
 #define SCAN_FREQUENCY 200 // Max # of frames between rotary scans
 
 // Speed/Acceleration
-#define VEL_FACTOR 0.025// At velocity=1.0, lander moves 0.025 pixel per frame
+#define VEL_FACTOR 0.025 // At velocity=1.0, lander moves 0.025 pixel per frame
+#define ACCEL_FACTOR 0.00451 // At accel 1.0, velocity increases by 0.00451 per frame
 
 // Sensor states variables
 // True == working ok; False == something's wrong!
@@ -266,7 +267,7 @@ void Update_Velocity_X()
     {
         current_state->vel_x_OK = false;
         current_state->vel_x = frame_count > 0 ? (prev_state->vel_x
-                                                  + prev_state->accel_x * T_STEP) : 0;
+                                                  + prev_state->accel_x * ACCEL_FACTOR) : 0;
         Vx_OK = false;
     }
 }
@@ -301,7 +302,7 @@ void Update_Velocity_Y()
     {
         current_state->vel_y_OK = false;
         current_state->vel_y =  frame_count > 0 ? (prev_state->vel_y
-                                                   + prev_state->accel_y * T_STEP) : 0;
+                                                   + prev_state->accel_y * ACCEL_FACTOR) : 0;
         Vy_OK = false;
     }
 }
@@ -552,9 +553,9 @@ void Update_Accel()
 
     current_state->accel_y -= G_ACCEL;
     
-    printf("Update_Accel: pow_L %f pow_M %f pow_R %f angle %f\n accel_x %f accel_y %f\n\n",
-           current_state->pow_L, current_state->pow_M, current_state->pow_R,
-           current_state->angle, current_state->accel_x, current_state->accel_y);
+    // printf("Update_Accel: pow_L %f pow_M %f pow_R %f angle %f\n accel_x %f accel_y %f\n\n",
+    //        current_state->pow_L, current_state->pow_M, current_state->pow_R,
+    //        current_state->angle, current_state->accel_x, current_state->accel_y);
 }
 
 void Log_sensors()
