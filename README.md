@@ -1,13 +1,13 @@
+
 Sensor failures
 
-
-4 - Horizontal velocity sensor:
+4 - Horizontal velocity sensor: *(OK NOW)*
   Can't land, need better calculation probably.
 
 5 - Vertical velocity sensor:
   Comes close to landing but won't lower itself down the last little bit.
 
-6 - Horizontal position sensor:
+6 - Horizontal position sensor: *(OK NOW)*
   Maybe this can be improved but it seems like a long shot to get it to
   find the landing pad without it.
 
@@ -20,3 +20,7 @@ Sensor failures
 9 - Sonar:
   Laser_Rot_Scan needs a lot of work. With that disabled, can usually
   land on easy map and sometimes on hard.
+
+10 - Lander_Control easy.ppm 3 2 4 6 - without left thruster & no pos_x vel_x, always crash just to right
+
+11 - Lander_Control easy.ppm 3 3 4 5 - without right thruster & no pos_x vel_x, always crash just to left
