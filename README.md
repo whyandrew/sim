@@ -20,6 +20,6 @@ Sensor failures
   Laser_Rot_Scan needs a lot of work. With that disabled, can usually
   land on easy map and sometimes on hard.
 
-10 - Lander_Control easy.ppm 3 2 4 6 - without left thruster & no pos_x vel_x, always crash just to right
+Lander_Control easy.ppm 3 2 4 6 - without left thruster & no pos_x vel_x, always crash just to right. Use single thruster mode instead?
 
-11 - Lander_Control easy.ppm 3 3 4 5 - without right thruster & no pos_x vel_x, always crash just to left
+Lander_Control easy.ppm 3 3 4 5 - without right thruster & no pos_x vel_x, always crash just to left. Use single thruster mode instead?
