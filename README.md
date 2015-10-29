@@ -17,8 +17,18 @@ Sensor failures
     Usually seems to land fine.
 
 9 - Sonar:
-  Laser_Rot_Scan needs a lot of work. With that disabled, can usually
-  land on easy map and sometimes on hard.
+  Can usually land on easy map and sometimes on hard even without fixing anything. The copy of Lander.cpp in /Test_only/ stops the lander at regular intervals and does the rotation w/ little y displacement, but there are some bugs to iron out (gets stuck partway through sometimes.) Still need to log values from rangedist, maybe just find the minimum values of certain ranges directly (and store to globals) instead of emulating the whole sonar array.
+  
+  e.g. min distance reading over 45-135 degrees -> min_dist_right
+
+  min distance reading over 135-225 degrees -> min_dist_down
+  
+  min distance reading over 225-315 degrees -> min_dist_left
+  
+  Then maybe adjust these for displacement since scan.
+  
+  min distance reading over 315-45 degrees -> min_dist_up
+  
 
 Lander_Control easy.ppm 3 2 4 6 - without left thruster & no pos_x vel_x, always crash just to right. Use single thruster mode instead?
 
