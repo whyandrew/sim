@@ -303,6 +303,13 @@ void Update_Velocity_Y()
         current_state->vel_y_OK = false;
         current_state->vel_y =  frame_count > 0 ? (prev_state->vel_y
                                                    + prev_state->accel_y * ACCEL_FACTOR) : 0;
+        if (PosY_OK && frame_count > 10)
+        {   // if Position sensor is working, use that to calculate velocity and average with the one above.
+            int oldestState = (frame_count - 9) % NUM_RECENT_STATES;
+            current_state->vel_y += (recent_states[oldestState]->pos_y - current_state->pos_y ) / (9 * VEL_FACTOR);
+            current_state->vel_y /= 2.0;
+        }
+
         Vy_OK = false;
     }
 }
