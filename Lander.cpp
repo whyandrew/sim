@@ -775,6 +775,11 @@ double Robust_RangeDist(void)
     ret = ret / NUMSAMPLES;
     return ret;
 }
+    /************************************************************
+    *
+    *                   Movement related functions
+    * 
+    *************************************************************/
 
 double Corrected_Angle(void)
 {
@@ -846,11 +851,6 @@ double Corrected_Angle(void)
         corrected += 360.0;
     return corrected;
 }
-    /************************************************************
-    *
-    *                   THRUSTER FUNCTIONS
-    * 
-    *************************************************************/
 
 void Logged_Left_Thruster(double power)
 {
@@ -924,13 +924,6 @@ void Single_Thruster(double power)
                         "when two adjacent thrusters are working.\n");
     }
 }
-
-    /************************************************************
-    *                   LASER ROTATIONAL SCAN
-    * 
-    *         360 degree laser scan of surroundings.
-    *************************************************************/
-
 
     /************************************************************
     *                       LANDER CONTROL
@@ -1038,7 +1031,11 @@ void Lander_Control(void)
             VYlim=0;
         }
     }
-    
+    /************************************************************
+    *                   LASER ROTATIONAL SCAN
+    * 
+    *         360 degree laser scan of surroundings.
+    *************************************************************/
     if (currently_scanning)
     {
         switch(scanning_step)
