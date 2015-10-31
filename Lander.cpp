@@ -170,6 +170,7 @@
 #define MAX_POS_DIFF 50.0 // Maximum span between position readings to be considered legit
 #define MAX_ANGLE_DIFF 20.0
 #define SCAN_FREQUENCY 200 // Max # of frames between rotary scans
+#define INITIAL_MIN_DIST 1000000 // Value greater than any real distance measurement
 
 // Speed/Acceleration
 #define VEL_FACTOR 0.025 // At velocity=1.0, lander moves 0.025 pixel per frame
@@ -184,6 +185,11 @@ bool PosY_OK = true;
 bool Angle_OK = true;
 bool Sonar_OK = true;
 bool Sonar_Suspect = false;
+double min_dist_U = INITIAL_MIN_DIST; // Minimum distance to terrain (up)
+double min_dist_D = INITIAL_MIN_DIST; // Minimum distance to terrain (down)
+double min_dist_L = INITIAL_MIN_DIST; // Minimum distance to terrain (left)
+double min_dist_R = INITIAL_MIN_DIST; // Minimum distance to terrain (right)
+
 
 // Control states
 bool isRotating = false;
@@ -226,16 +232,42 @@ struct State
     double pos_x;
     double pos_y;
     double angle;
-    double sonar[36];
-    double range; // RangeDist()
+    //double sonar[36];
+    double min_dist_U; // Minimum distance to terrain (up)
+    double min_dist_D; // Minimum distance to terrain (down)
+    double min_dist_L; // Minimum distance to terrain (left)
+    double min_dist_R; // Minimum distance to terrain (right)
+
+    double range; // Current RangeDist()
 };
 
 struct State *recent_states[NUM_RECENT_STATES];
 struct State *prev_state, *current_state, *predicted_state;
 
+void Update_Velocity_X(void);
+void Update_Velocity_Y(void);
+void Update_Position_X(void);
+void Update_Position_Y(void);
+double Robust_Velocity_X(void);
+double Robust_Velocity_Y(void);
+double Robust_Position_X(void);
+double Robust_Position_Y(void);
+double Robust_Sonar(double);
+double Robust_Angle(void);
+double Robust_RangeDist(void);
+void Update_Angle(void);
+void Update_Accel(void);
+double Corrected_Angle(void);
+void Logged_Left_Thruster(double);
+void Logged_Main_Thruster(double);
+void Logged_Right_Thruster(double);
+void Lander_Control(void);
+void Safety_Override(void);
+
+
 // Functions to update the current State struct
 
-void Update_Velocity_X()
+void Update_Velocity_X(void)
 {
     double sum = 0.0;
     double minimum = 0.0;
@@ -272,7 +304,7 @@ void Update_Velocity_X()
     }
 }
 
-void Update_Velocity_Y()
+void Update_Velocity_Y(void)
 {
     double sum = 0.0;
     double minimum = 0.0;
@@ -314,7 +346,7 @@ void Update_Velocity_Y()
     }
 }
 
-void Update_Position_X()
+void Update_Position_X(void)
 {
     double sum = 0.0;
     double minimum = 0.0;
@@ -354,7 +386,7 @@ void Update_Position_X()
     }
 }
 
-void Update_Position_Y()
+void Update_Position_Y(void)
 {
     double sum = 0.0;
     double minimum = 0.0;
@@ -397,22 +429,22 @@ void Update_Position_Y()
     *************************************************************/
 
 // 
-double Robust_Velocity_X()
+double Robust_Velocity_X(void)
 {
     return current_state->vel_x;
 }
 
-double Robust_Velocity_Y()
+double Robust_Velocity_Y(void)
 {
     return current_state->vel_y;
 }
 
-double Robust_Position_X()
+double Robust_Position_X(void)
 {
     return current_state->pos_x;
 }
 
-double Robust_Position_Y()
+double Robust_Position_Y(void)
 {
     return current_state->pos_y;
 }
@@ -458,7 +490,7 @@ double Robust_Sonar(double angle)
     return ret;
 }
 
-double Robust_Angle()
+double Robust_Angle(void)
 {
     // Corner case when angle is near 0 (360) degrees:
     // It appears Lander_Control API will always return Angle() either 
@@ -488,7 +520,7 @@ double Robust_Angle()
     return ret;
 }
 
-double Robust_RangeDist()
+double Robust_RangeDist(void)
 {
     //RangeDist() never fails, and it appears to be always accurate... or is it?
 
@@ -504,7 +536,7 @@ double Robust_RangeDist()
     return ret;
 }
 
-void Update_Angle()
+void Update_Angle(void)
 {
     //Check for bad Angle sensor
     if (Angle_OK)
@@ -536,7 +568,7 @@ void Update_Angle()
     current_state->angle = Robust_Angle();
 }
 
-void Update_Accel()
+void Update_Accel(void)
 {
     double lander_LR_accel, lander_UpDown_accel, accel_theta, accel_magnitude;
     /* Calculate x and y acceleration from thrusters as if lander was upright */
@@ -565,7 +597,7 @@ void Update_Accel()
     //        current_state->angle, current_state->accel_x, current_state->accel_y);
 }
 
-void Log_sensors()
+void Log_sensors(void)
 {
     /* Update state variables */
 
