@@ -569,12 +569,12 @@ void Log_sensors()
 {
     /* Update state variables */
 
+    Update_Position_X();
+    Update_Position_Y();
 
     Update_Velocity_X();
     Update_Velocity_Y();
-    //printf("\n");
-    Update_Position_X();
-    Update_Position_Y();
+    
     Update_Angle();
     //printf("\n\n******************************************************\n");
 
