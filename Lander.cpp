@@ -250,7 +250,7 @@ struct State *prev_state, *current_state, *predicted_state;
     * 
     *************************************************************/
     
-void Log_sensors(void);
+void Log_Sensors(void);
 void Update_Velocity_X(void);
 void Update_Velocity_Y(void);
 void Update_Position_X(void);
@@ -279,7 +279,7 @@ void Safety_Override(void);
     * 
     *************************************************************/
 
-void Log_sensors(void)
+void Log_Sensors(void)
 {
     /* Update state variables */
 
@@ -322,16 +322,16 @@ void Log_sensors(void)
         current_state->pow_R = prev_state->pow_R;
     }
     Update_Accel();
-    
-    bool all_minus_ones = true;
-    for (int i=0; i<36; i++)
-    {
-        if (SONAR_DIST[i] != -1)
-        {
-            all_minus_ones = false;
-        }
-    }
-    Sonar_Suspect = all_minus_ones;
+    Update_Min_Distances();
+    ///bool all_minus_ones = true;
+    ///for (int i=0; i<36; i++)
+    //{
+    //   if (SONAR_DIST[i] != -1)
+     //   {
+    //        all_minus_ones = false;
+    //    }
+    //}
+    //Sonar_Suspect = all_minus_ones;
 }
 
 void Update_Velocity_X(void)
@@ -551,9 +551,88 @@ void Update_Accel(void)
     //        current_state->pow_L, current_state->pow_M, current_state->pow_R,
     //        current_state->angle, current_state->accel_x, current_state->accel_y);
 }
+
 void Update_Min_Distances(void)
 {
+    printf("Sonar_OK:%s currently_scanning:%s\n", Sonar_OK ? "true" : "false", currently_scanning ? "true" : "false");
+    if (Sonar_OK && !currently_scanning) // Sonar OK (as far as we know), so do the
+    {                                    // calculations from the original Safety_Override
+        min_dist_U = min_dist_D = min_dist_L = min_dist_R = INITIAL_MIN_DIST;
+        
+        /* Minimum distance in "Up" quadrant*/
+        for (int i=0; i<5; i++)
+            if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < min_dist_U) 
+                min_dist_U = SONAR_DIST[i];
+        for (int i=32; i<36; i++)
+            if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < min_dist_U) 
+                min_dist_U = SONAR_DIST[i];
+
+        /* Minimum distance in "Down" quadrant*/
+        for (int i=14; i<22; i++)
+            if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < min_dist_D) 
+                min_dist_D = SONAR_DIST[i];
+
+        /* Minimum distance in "Left" quadrant*/
+        for (int i=5;i<14;i++)
+            if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < min_dist_L) 
+                min_dist_L = SONAR_DIST[i];
+
+        /* Minimum distance in "Right" quadrant*/
+        for (int i=22;i<32;i++)
+            if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < min_dist_R) 
+                min_dist_R = SONAR_DIST[i];
+        
+        if (min_dist_U == INITIAL_MIN_DIST && min_dist_D == INITIAL_MIN_DIST &&
+            min_dist_L == INITIAL_MIN_DIST && min_dist_R == INITIAL_MIN_DIST)
+        { // Sonar data is not reading anything, either broken or out of range
+            printf("Sonar data is not reading anything, either broken or out of range");
+            //currently_scanning = true; // Initiate laser scan
+
+            if (prev_state == NULL) // First frame
+            {
+                current_state->min_dist_U = INITIAL_MIN_DIST;
+                current_state->min_dist_D = INITIAL_MIN_DIST;
+                current_state->min_dist_L = INITIAL_MIN_DIST;
+                current_state->min_dist_R = INITIAL_MIN_DIST;
+            }
+            else // Not first frame
+            {
+                // TODO: uncomment the calculations when sure signs are not reversed in the later code
+                double x_displacement = 0; // current_state->pos_x - current_state->pos_x;
+                double y_displacement = 0; // current_state->pos_y - current_state->pos_y;
+                
+                if (prev_state->min_dist_U == INITIAL_MIN_DIST) // Don't adjust if == INITIAL_MIN_DIST
+                    current_state->min_dist_U = INITIAL_MIN_DIST; 
+                else // Adjust for y displacement
+                    current_state->min_dist_U = prev_state->min_dist_U + y_displacement; // TODO: check sign
+                
+                if (prev_state->min_dist_D == INITIAL_MIN_DIST) // Don't adjust if == INITIAL_MIN_DIST
+                    current_state->min_dist_D = INITIAL_MIN_DIST; 
+                else // Adjust previous value for y displacement
+                    current_state->min_dist_D = prev_state->min_dist_D - y_displacement; // TODO: check sign
+
+                 if (prev_state->min_dist_L == INITIAL_MIN_DIST) // Don't adjust if == INITIAL_MIN_DIST
+                    current_state->min_dist_L = INITIAL_MIN_DIST; 
+                else // Adjust previous value for y displacement
+                    current_state->min_dist_L = prev_state->min_dist_L + x_displacement; // TODO: check sign
+
+                if (prev_state->min_dist_R == INITIAL_MIN_DIST) // Don't adjust if == INITIAL_MIN_DIST
+                    current_state->min_dist_R = INITIAL_MIN_DIST; 
+                else // Adjust previous value for y displacement
+                    current_state->min_dist_R = prev_state->min_dist_R - x_displacement; // TODO: check sign
+            }
+        }
+        else // At least one minimum reading != INITIAL_MIN_DIST, sonar must be functioning
+        {
+            printf("%f\t%f\t%f\t%f\n", min_dist_U, min_dist_D, min_dist_L, min_dist_R);
+            current_state->min_dist_U = min_dist_U;
+            current_state->min_dist_D = min_dist_D;
+            current_state->min_dist_L = min_dist_L;
+            current_state->min_dist_R = min_dist_R;
+        }
+    }
     
+
 }
     /************************************************************
     *                 Robust APIs for all sensors
@@ -947,7 +1026,7 @@ void Lander_Control(void)
         prev_state = current_state;
     }
     current_state = recent_states[frame_count % NUM_RECENT_STATES];
-    Log_sensors();
+    Log_Sensors();
     frame_count++;
     if (Sonar_Suspect && (currently_scanning || frames_since_scan > SCAN_FREQUENCY))
     {
@@ -1134,15 +1213,19 @@ void Safety_Override(void)
     dmin=1000000;
     if (Robust_Velocity_X()>0)
     {
-        for (int i=5;i<14;i++)
-            if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < dmin) 
-                dmin = SONAR_DIST[i];
+        dmin = current_state->min_dist_R;
+        // for (int i=5;i<14;i++)
+        //     if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < dmin) 
+        //         dmin = SONAR_DIST[i];
+        // printf("dmin:%f\tcurrent_state->min_dist_R:%f\n", dmin, current_state->min_dist_R);
     }
     else
     {
-        for (int i=22;i<32;i++)
-            if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < dmin) 
-                dmin = SONAR_DIST[i];
+        dmin = current_state->min_dist_L;
+        // for (int i=22;i<32;i++)
+        //     if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < dmin) 
+        //         dmin = SONAR_DIST[i];
+        // printf("dmin:%f\tcurrent_state->min_dist_L:%f\n", dmin, current_state->min_dist_L);
     }
     // Determine whether we're too close for comfort. There is a reason
     // to have this distance limit modulated by horizontal speed...
@@ -1195,19 +1278,23 @@ void Safety_Override(void)
     dmin=1000000;
     if (Robust_Velocity_Y()>5)      // Mind this! there is a reason for it...
     {
-        for (int i=0; i<5; i++)
-            if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
-                dmin = SONAR_DIST[i];
+        dmin = current_state->min_dist_U;
+        // for (int i=0; i<5; i++)
+        //     if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
+        //         dmin = SONAR_DIST[i];
 
-        for (int i=32; i<36; i++)
-            if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
-                dmin = SONAR_DIST[i];
+        // for (int i=32; i<36; i++)
+        //     if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
+        //         dmin = SONAR_DIST[i];
+        // printf("dmin:%f\tcurrent_state->min_dist_U:%f\n", dmin, current_state->min_dist_U);
     }
     else
     {
-        for (int i=14; i<22; i++)
-            if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
-                dmin = SONAR_DIST[i];
+        dmin = current_state->min_dist_D;
+        // for (int i=14; i<22; i++)
+        //     if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
+        //         dmin = SONAR_DIST[i];
+        // printf("dmin:%f\tcurrent_state->min_dist_D:%f\n", dmin, current_state->min_dist_D);
     }
     if (dmin<DistLimit)   // Too close to a surface in the horizontal direction
     {
