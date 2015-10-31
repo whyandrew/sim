@@ -185,6 +185,7 @@ bool PosY_OK = true;
 bool Angle_OK = true;
 bool Sonar_OK = true;
 bool Sonar_Suspect = false;
+bool currently_scanning = false;
 double min_dist_U = INITIAL_MIN_DIST; // Minimum distance to terrain (up)
 double min_dist_D = INITIAL_MIN_DIST; // Minimum distance to terrain (down)
 double min_dist_L = INITIAL_MIN_DIST; // Minimum distance to terrain (left)
@@ -244,10 +245,20 @@ struct State
 struct State *recent_states[NUM_RECENT_STATES];
 struct State *prev_state, *current_state, *predicted_state;
 
+    /************************************************************
+    *                     Function declarations
+    * 
+    *************************************************************/
+    
+void Log_sensors(void);
 void Update_Velocity_X(void);
 void Update_Velocity_Y(void);
 void Update_Position_X(void);
 void Update_Position_Y(void);
+void Update_Angle(void);
+void Update_Accel(void);
+void Update_Min_Distances(void);
+
 double Robust_Velocity_X(void);
 double Robust_Velocity_Y(void);
 double Robust_Position_X(void);
@@ -255,8 +266,7 @@ double Robust_Position_Y(void);
 double Robust_Sonar(double);
 double Robust_Angle(void);
 double Robust_RangeDist(void);
-void Update_Angle(void);
-void Update_Accel(void);
+
 double Corrected_Angle(void);
 void Logged_Left_Thruster(double);
 void Logged_Main_Thruster(double);
@@ -264,8 +274,65 @@ void Logged_Right_Thruster(double);
 void Lander_Control(void);
 void Safety_Override(void);
 
+    /************************************************************
+    *       Functions to update the current State struct
+    * 
+    *************************************************************/
 
-// Functions to update the current State struct
+void Log_sensors(void)
+{
+    /* Update state variables */
+
+    Update_Position_X();
+    Update_Position_Y();
+
+    Update_Velocity_X();
+    Update_Velocity_Y();
+    
+    Update_Angle();
+    //printf("\n\n******************************************************\n");
+
+    current_state->thr_L_OK = LT_OK;
+    if (!LT_OK || prev_state==NULL)
+    {
+        current_state->pow_L = 0;
+    }
+    else
+    {
+        current_state->pow_L = prev_state->pow_L;
+    }
+
+    current_state->thr_M_OK = MT_OK;
+    if (!MT_OK || prev_state==NULL)
+    {
+        current_state->pow_M = 0;
+    }
+    else
+    {
+        current_state->pow_M = prev_state->pow_M;
+    }
+
+    current_state->thr_R_OK = RT_OK;
+    if (!RT_OK || prev_state==NULL)
+    {
+        current_state->pow_R = 0;
+    }
+    else
+    {
+        current_state->pow_R = prev_state->pow_R;
+    }
+    Update_Accel();
+    
+    bool all_minus_ones = true;
+    for (int i=0; i<36; i++)
+    {
+        if (SONAR_DIST[i] != -1)
+        {
+            all_minus_ones = false;
+        }
+    }
+    Sonar_Suspect = all_minus_ones;
+}
 
 void Update_Velocity_X(void)
 {
@@ -423,6 +490,71 @@ void Update_Position_Y(void)
         PosY_OK = false;
     }
 }
+
+void Update_Angle(void)
+{
+    //Check for bad Angle sensor
+    if (Angle_OK)
+    {
+        double min = 999999.0;
+        double max = -9999999.0;
+        double reading;
+        for (int i = 0; i < NUMSAMPLES; i++)
+        {
+            reading = Angle();
+            if (reading > max)
+            {
+                max = reading; 
+            }
+            if (reading < min)
+            {
+                min = reading;
+            }
+        }
+
+        if ((max - min) > MAX_ANGLE_DIFF)
+        {
+            Angle_OK = false;
+        }
+    }
+
+    current_state->angle_OK = Angle_OK;
+    // Angle sensor still works when "faulty"... just alot more noise.
+    current_state->angle = Robust_Angle();
+}
+
+void Update_Accel(void)
+{
+    double lander_LR_accel, lander_UpDown_accel, accel_theta, accel_magnitude;
+    /* Calculate x and y acceleration from thrusters as if lander was upright */
+    lander_LR_accel = current_state->pow_L * LT_ACCEL;
+    lander_LR_accel -= current_state->pow_R * RT_ACCEL;
+    lander_UpDown_accel = current_state->pow_M * MT_ACCEL;
+    /* Convert accel from cartesian to polar coordinates*/
+    // accel_theta = lander_UpDown_accel !=0.0 ? atan2(lander_UpDown_accel, lander_LR_accel) : 0.0;
+    // accel_magnitude = sqrt(lander_LR_accel * lander_LR_accel + lander_UpDown_accel * lander_UpDown_accel);
+    // /* Correct theta for actual orientation */
+    // accel_theta -= current_state->angle * PI / 180; // TODO: check if += or -= is correct
+    
+    // current_state->accel_x = accel_magnitude * cos(accel_theta);
+    // current_state->accel_y = accel_magnitude * sin(accel_theta) - G_ACCEL;
+    
+    current_state->accel_x = lander_LR_accel * cos(-current_state->angle * PI / 180.0);
+    current_state->accel_y = -(lander_LR_accel * sin(current_state->angle * PI / 180.0));
+
+    current_state->accel_x += lander_UpDown_accel * sin(current_state->angle * PI / 180.0);
+    current_state->accel_y += lander_UpDown_accel * cos(current_state->angle * PI / 180.0);
+
+    current_state->accel_y -= G_ACCEL;
+    
+    // printf("Update_Accel: pow_L %f pow_M %f pow_R %f angle %f\n accel_x %f accel_y %f\n\n",
+    //        current_state->pow_L, current_state->pow_M, current_state->pow_R,
+    //        current_state->angle, current_state->accel_x, current_state->accel_y);
+}
+void Update_Min_Distances(void)
+{
+    
+}
     /************************************************************
     *                 Robust APIs for all sensors
     * 
@@ -534,122 +666,6 @@ double Robust_RangeDist(void)
 
     ret = ret / NUMSAMPLES;
     return ret;
-}
-
-void Update_Angle(void)
-{
-    //Check for bad Angle sensor
-    if (Angle_OK)
-    {
-        double min = 999999.0;
-        double max = -9999999.0;
-        double reading;
-        for (int i = 0; i < NUMSAMPLES; i++)
-        {
-            reading = Angle();
-            if (reading > max)
-            {
-                max = reading; 
-            }
-            if (reading < min)
-            {
-                min = reading;
-            }
-        }
-
-        if ((max - min) > MAX_ANGLE_DIFF)
-        {
-            Angle_OK = false;
-        }
-    }
-
-    current_state->angle_OK = Angle_OK;
-    // Angle sensor still works when "faulty"... just alot more noise.
-    current_state->angle = Robust_Angle();
-}
-
-void Update_Accel(void)
-{
-    double lander_LR_accel, lander_UpDown_accel, accel_theta, accel_magnitude;
-    /* Calculate x and y acceleration from thrusters as if lander was upright */
-    lander_LR_accel = current_state->pow_L * LT_ACCEL;
-    lander_LR_accel -= current_state->pow_R * RT_ACCEL;
-    lander_UpDown_accel = current_state->pow_M * MT_ACCEL;
-    /* Convert accel from cartesian to polar coordinates*/
-    // accel_theta = lander_UpDown_accel !=0.0 ? atan2(lander_UpDown_accel, lander_LR_accel) : 0.0;
-    // accel_magnitude = sqrt(lander_LR_accel * lander_LR_accel + lander_UpDown_accel * lander_UpDown_accel);
-    // /* Correct theta for actual orientation */
-    // accel_theta -= current_state->angle * PI / 180; // TODO: check if += or -= is correct
-    
-    // current_state->accel_x = accel_magnitude * cos(accel_theta);
-    // current_state->accel_y = accel_magnitude * sin(accel_theta) - G_ACCEL;
-    
-    current_state->accel_x = lander_LR_accel * cos(-current_state->angle * PI / 180.0);
-    current_state->accel_y = -(lander_LR_accel * sin(current_state->angle * PI / 180.0));
-
-    current_state->accel_x += lander_UpDown_accel * sin(current_state->angle * PI / 180.0);
-    current_state->accel_y += lander_UpDown_accel * cos(current_state->angle * PI / 180.0);
-
-    current_state->accel_y -= G_ACCEL;
-    
-    // printf("Update_Accel: pow_L %f pow_M %f pow_R %f angle %f\n accel_x %f accel_y %f\n\n",
-    //        current_state->pow_L, current_state->pow_M, current_state->pow_R,
-    //        current_state->angle, current_state->accel_x, current_state->accel_y);
-}
-
-void Log_sensors(void)
-{
-    /* Update state variables */
-
-    Update_Position_X();
-    Update_Position_Y();
-
-    Update_Velocity_X();
-    Update_Velocity_Y();
-    
-    Update_Angle();
-    //printf("\n\n******************************************************\n");
-
-    current_state->thr_L_OK = LT_OK;
-    if (!LT_OK || prev_state==NULL)
-    {
-        current_state->pow_L = 0;
-    }
-    else
-    {
-        current_state->pow_L = prev_state->pow_L;
-    }
-
-    current_state->thr_M_OK = MT_OK;
-    if (!MT_OK || prev_state==NULL)
-    {
-        current_state->pow_M = 0;
-    }
-    else
-    {
-        current_state->pow_M = prev_state->pow_M;
-    }
-
-    current_state->thr_R_OK = RT_OK;
-    if (!RT_OK || prev_state==NULL)
-    {
-        current_state->pow_R = 0;
-    }
-    else
-    {
-        current_state->pow_R = prev_state->pow_R;
-    }
-    Update_Accel();
-    
-    bool all_minus_ones = true;
-    for (int i=0; i<36; i++)
-    {
-        if (SONAR_DIST[i] != -1)
-        {
-            all_minus_ones = false;
-        }
-    }
-    Sonar_Suspect = all_minus_ones;
 }
 
 double Corrected_Angle(void)
@@ -808,61 +824,61 @@ void Single_Thruster(double power)
     *************************************************************/
 
 /* Globals */
-bool currently_scanning = false;
-int  scanning_step;   //    Which step in the scanning process (occurs over
-                      //    multiple frames through many calls to this function)
-static const double velocity_tolerance = 0;
-static const double target_y_velocity = 0;
-double initial_angle;
 
-void Laser_Rot_Scan(void)
-{
-    printf("Laser_Rot_Scan Step %d\n", scanning_step);
-    if (!currently_scanning) // A new scan has been initiated
-    {
-        currently_scanning = true;
-        scanning_step = 0;
-    }
-    switch(scanning_step)
-    {
-        case 0:
-            /* Step 0: Bring y velocity to something slightly 
-             * positive, and x velocity close to 0. */
+// int  scanning_step;   //    Which step in the scanning process (occurs over
+//                       //    multiple frames through many calls to this function)
+// static const double velocity_tolerance = 0;
+// static const double target_y_velocity = 0;
+// double initial_angle;
+// 
+// void Laser_Rot_Scan(void)
+// {
+//     printf("Laser_Rot_Scan Step %d\n", scanning_step);
+//     if (!currently_scanning) // A new scan has been initiated
+//     {
+//         currently_scanning = true;
+//         scanning_step = 0;
+//     }
+//     switch(scanning_step)
+//     {
+//         case 0:
+//             /* Step 0: Bring y velocity to something slightly 
+//              * positive, and x velocity close to 0. */
 
-            // Out of tolerance range for our target velocities 
-            if (fabs(Robust_Velocity_X()) > velocity_tolerance ||
-                fabs(Robust_Velocity_Y() - target_y_velocity) > velocity_tolerance)
-            {
-                // TODO: Apply corresponding power to rockets before break
-                break;
-            }
-            else scanning_step++; // At target velocity, so we move on
-                                  // to the next step.
-        case 1:
-            /* Step 1: Initialize rotation and record what angle 
-               we started at */
-            initial_angle = Robust_Angle();
-            Rotate(365); // A little farther to account for rotation noise
-            scanning_step++;
+//             // Out of tolerance range for our target velocities 
+//             if (fabs(Robust_Velocity_X()) > velocity_tolerance ||
+//                 fabs(Robust_Velocity_Y() - target_y_velocity) > velocity_tolerance)
+//             {
+//                 // TODO: Apply corresponding power to rockets before break
+//                 break;
+//             }
+//             else scanning_step++; // At target velocity, so we move on
+//                                   // to the next step.
+//         case 1:
+//             /* Step 1: Initialize rotation and record what angle 
+//               we started at */
+//             initial_angle = Robust_Angle();
+//             Rotate(365); // A little farther to account for rotation noise
+//             scanning_step++;
 
-        case 2:
-            /* Step 2: Take readings as we rotate until we return to 
-               the original angle. Once back to the original angle,
-               the scan is over. 
-               */
-            if (false) // TODO: create some condition that is true 
-            {          // if the scan hasn't been completed yet
-                // TODO: Take the readings as we go
-            }
-            else // Scan is complete
-            {
-                Rotate(0);
-                currently_scanning = false;
-                frames_since_scan = 0;
-                scanning_step = 0;
-            }
-    }
-}
+//         case 2:
+//             /* Step 2: Take readings as we rotate until we return to 
+//               the original angle. Once back to the original angle,
+//               the scan is over. 
+//               */
+//             if (false) // TODO: create some condition that is true 
+//             {          // if the scan hasn't been completed yet
+//                 // TODO: Take the readings as we go
+//             }
+//             else // Scan is complete
+//             {
+//                 Rotate(0);
+//                 currently_scanning = false;
+//                 frames_since_scan = 0;
+//                 scanning_step = 0;
+//             }
+//     }
+// }
 
     /************************************************************
     *                       LANDER CONTROL
