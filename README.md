@@ -1,14 +1,11 @@
 Tests
 ------
+
 easy.ppm
-
 (2 sensors)
-
-5	7	elvis
-
-2	5	hovers
-
-3	5	hovers
+  5	7	elvis
+  2	5	hovers
+  3	5	hovers
 
 hard.ppm
 (2 sensors)
