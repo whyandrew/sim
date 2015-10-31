@@ -1,27 +1,26 @@
 Tests
-------
 
 easy.ppm
 (2 sensors)
-  5	7	elvis
-  2	5	hovers
-  3	5	hovers
+- 5	7	elvis
+- 2	5	hovers
+- 3	5	hovers
 
 hard.ppm
 (2 sensors)
-4	9	crash
-5	7	crash
-5	9	crash
-6	8	crash
-6	9	crash
-7	8	crash
-7	9	crash
-8	9	crash
+- 4	9	crash
+- 5	7	crash
+- 5	9	crash
+- 6	8	crash
+- 6	9	crash
+- 7	8	crash
+- 7	9	crash
+- 8	9	crash
 
 (1 Thruster & 1 Sensor)
-2	5	hovers
-1	5	elvis
-3	5	elvis
+- 2	5	hovers
+- 1	5	elvis
+- 3	5	elvis
 
 Sensor failures
 
