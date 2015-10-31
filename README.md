@@ -10,8 +10,8 @@ Sensor failures
 6 - Horizontal position sensor: *(OK NOW)*
   Usually seems to land fine.
 
-7 - Vertical position sensor:
-  Comes close to landing but won't lower itself down the last little bit.
+7 - Vertical position sensor: **(OK NOW)**
+  Need more testing in different failure combo...
 
 8 - Angle sensor:
     Usually seems to land fine.
