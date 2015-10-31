@@ -380,7 +380,7 @@ void Update_Position_Y()
         //                                 + prev_state->vel_y * T_STEP
         //                + 0.5 * prev_state->accel_y * T_STEP * T_STEP) : 0;
         current_state->pos_y =  (frame_count > 0) ? (prev_state->pos_y
-                                        + prev_state->vel_y * VEL_FACTOR) : 0;
+                                        - prev_state->vel_y * VEL_FACTOR) : 0;
         PosY_OK = false;
     }
 }
