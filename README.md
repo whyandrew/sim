@@ -4,8 +4,8 @@ Sensor failures
 4 - Horizontal velocity sensor: *(OK NOW)*
   Usually seems to land fine.
 
-5 - Vertical velocity sensor:
-  Comes close to landing but won't lower itself down the last little bit.
+5 - Vertical velocity sensor: **(Workaround for case when Pos_Y is ok)**
+  Andrew: Use Pos_Y to estimate velocity and average with calculated velocity from acceleration. Still can't find cause of issue, but I find the calculated velocity from acceleration is quite far off when lander approaches pad. Can possible be due to accumulated error?! ** Patrick: test more cases of bad vertical velocity sensor ** I only tried a few.
 
 6 - Horizontal position sensor: *(OK NOW)*
   Usually seems to land fine.
@@ -18,6 +18,10 @@ Sensor failures
 
 9 - Sonar:
 With no correction, the absence of sonar only really seems to cause problems on the hard map. The copy of Lander.cpp in /Test_only/ now seems to scan properly. It calculates the minimum distance for each quadrant directly as used by safety_override (dmin), updating the global variables min_dist_U, min_dist_L, min_dist_D, and min_dist_R (up, left, down, right). Still to do: better determination of when to scan: prevent scanning when close to landing, when sonar is known to be working, etc. Also address failure to descend that happens sometimes (scanning too frequently?) Then incorporate into main file.
+
+
+
+*Not important*:
 
 Lander_Control easy.ppm 3 2 4 6 - without left thruster & no pos_x vel_x, always crash just to right. Use single thruster mode instead?
 
