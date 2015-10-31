@@ -637,7 +637,7 @@ void Update_Min_Distances(void)
             current_state->min_dist_R = min_dist_R;
         }
     }
-    else if (currently_scanning)
+    else if (currently_scanning && RangeDist() != -1)
     {
         double angle = Robust_Angle();
         printf("Scanning angle:%f\treading:%f", angle, RangeDist());
