@@ -171,6 +171,7 @@
 #define MAX_ANGLE_DIFF 20.0
 #define SCAN_FREQUENCY 300 // Max # of frames between rotary scans
 #define INITIAL_MIN_DIST 1000000 // Value greater than any real distance measurement
+#define MIN_ROTATION_HEIGHT 30.0
 
 // Speed/Acceleration
 #define VEL_FACTOR 0.025 // At velocity=1.0, lander moves 0.025 pixel per frame
@@ -274,6 +275,7 @@ double Robust_Angle(void);
 double Robust_RangeDist(void);
 
 double Corrected_Angle(void);
+void Halt_Thrusters(void);
 void Logged_Left_Thruster(double);
 void Logged_Main_Thruster(double);
 void Logged_Right_Thruster(double);
@@ -560,7 +562,7 @@ void Update_Accel(void)
 
 void Update_Min_Distances(void)
 {
-    printf("Sonar_OK:%s currently_scanning:%s\n", Sonar_OK ? "true" : "false", currently_scanning ? "true" : "false");
+    //printf("Sonar_OK:%s currently_scanning:%s\n", Sonar_OK ? "true" : "false", currently_scanning ? "true" : "false");
     if (Sonar_OK && !currently_scanning) // Sonar OK (as far as we know), so do the
     {                                    // calculations from the original Safety_Override
         min_dist_U = min_dist_D = min_dist_L = min_dist_R = INITIAL_MIN_DIST;
@@ -591,7 +593,7 @@ void Update_Min_Distances(void)
         if (min_dist_U == INITIAL_MIN_DIST && min_dist_D == INITIAL_MIN_DIST &&
             min_dist_L == INITIAL_MIN_DIST && min_dist_R == INITIAL_MIN_DIST)
         { // Sonar data is not reading anything, either broken or out of range
-            printf("Sonar data is not reading anything, either broken or out of range");
+            //printf("Sonar data is not reading anything, either broken or out of range");
             //currently_scanning = true; // Initiate laser scan
 
             if (prev_state == NULL) // First frame
@@ -603,29 +605,32 @@ void Update_Min_Distances(void)
             }
             else // Not first frame
             {
-                // TODO: uncomment the calculations when sure signs are not reversed in the later code
-                double x_displacement = 0; // current_state->pos_x - current_state->pos_x;
-                double y_displacement = 0; // current_state->pos_y - current_state->pos_y;
+                double x_displacement = current_state->pos_x - prev_state->pos_x;
+                double y_displacement = current_state->pos_y - prev_state->pos_y;
                 
                 if (prev_state->min_dist_U == INITIAL_MIN_DIST) // Don't adjust if == INITIAL_MIN_DIST
                     current_state->min_dist_U = INITIAL_MIN_DIST; 
                 else // Adjust for y displacement
-                    current_state->min_dist_U = prev_state->min_dist_U + y_displacement; // TODO: check sign
+                    current_state->min_dist_U = prev_state->min_dist_U + y_displacement;
                 
                 if (prev_state->min_dist_D == INITIAL_MIN_DIST) // Don't adjust if == INITIAL_MIN_DIST
                     current_state->min_dist_D = INITIAL_MIN_DIST; 
                 else // Adjust previous value for y displacement
-                    current_state->min_dist_D = prev_state->min_dist_D - y_displacement; // TODO: check sign
+                    current_state->min_dist_D = prev_state->min_dist_D - y_displacement;
 
                  if (prev_state->min_dist_L == INITIAL_MIN_DIST) // Don't adjust if == INITIAL_MIN_DIST
                     current_state->min_dist_L = INITIAL_MIN_DIST; 
                 else // Adjust previous value for y displacement
-                    current_state->min_dist_L = prev_state->min_dist_L + x_displacement; // TODO: check sign
+                    current_state->min_dist_L = prev_state->min_dist_L + x_displacement;
 
                 if (prev_state->min_dist_R == INITIAL_MIN_DIST) // Don't adjust if == INITIAL_MIN_DIST
                     current_state->min_dist_R = INITIAL_MIN_DIST; 
                 else // Adjust previous value for y displacement
-                    current_state->min_dist_R = prev_state->min_dist_R - x_displacement; // TODO: check sign
+                    current_state->min_dist_R = prev_state->min_dist_R - x_displacement;
+                           printf("Estimated ranges:\n\tMin dist up:\t%f\n\tMin dist right:\t%f\n"
+                                   "\tMin dist down:\t%f\n\tMin dist left:\t%f\n",
+                                   current_state->min_dist_U, current_state->min_dist_R,
+                                   current_state->min_dist_D, current_state->min_dist_L);
             }
         }
         else // At least one minimum reading != INITIAL_MIN_DIST, sonar must be functioning
@@ -796,11 +801,6 @@ double Corrected_Angle(void)
     
     double tilt;
     double height_from_platform = PLAT_Y - Robust_Position_Y();
-    double min_height = 30.0; // Minimum height at which angle adjustments
-                            // apply. Below this, the lander is so close
-                            // to the landing pad that it should reorient
-                            // normally to avoid crashing.
-
 
     if (emergency_tilt == 0)
         tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
@@ -809,23 +809,23 @@ double Corrected_Angle(void)
     //printf("tilt: %f emergency_tilt: %f\n", tilt, emergency_tilt);
 
 
-    if (LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
+    if (LT_OK && MT_OK && !RT_OK && (height_from_platform > MIN_ROTATION_HEIGHT))
     {   // Two adjacent thrusters (left and middle) are working, so
         // we want to orient so that they are -45 and +45 from 180 (down)
         corrected += 45.0;
     }
-    else if (!LT_OK && MT_OK && RT_OK && (height_from_platform > min_height))
+    else if (!LT_OK && MT_OK && RT_OK && (height_from_platform > MIN_ROTATION_HEIGHT))
     {   // Two adjacent thrusters (middle and right) are working, so
         // we want to orient so that they are -45 and +45 from 180 (down)
         corrected -= 45.0;  
     }
-    else if (LT_OK && !MT_OK && !RT_OK && (height_from_platform > min_height))
+    else if (LT_OK && !MT_OK && !RT_OK && (height_from_platform > MIN_ROTATION_HEIGHT))
     {   // Only the left thruster is working, so we want to orient so that
         // it points down.
         corrected += 90.0;
         corrected += tilt; 
     }
-    else if (!MT_OK && RT_OK && (height_from_platform > min_height))
+    else if (!MT_OK && RT_OK && (height_from_platform > MIN_ROTATION_HEIGHT))
     {   // The middle thruster is out and the right thruster still works,
         // so we orient so that the right thruster points down. The left
         // thruster may or may not work, but without a middle thruster
@@ -834,13 +834,13 @@ double Corrected_Angle(void)
         corrected -= 90.0;
         corrected += tilt;
     }
-    else if (!LT_OK && MT_OK && !RT_OK && (height_from_platform > min_height))
+    else if (!LT_OK && MT_OK && !RT_OK && (height_from_platform > MIN_ROTATION_HEIGHT))
     {   // The middle thruster is the only one working, so we orient so that
         // the middle thruster points down. 
         corrected += tilt; 
     }
     else // Either all thrusters work, none work (!), or
-         // height_from_platform <= min_height. In each of these
+         // height_from_platform <= MIN_ROTATION_HEIGHT. In each of these
          // cases, normal orientation is the best choice. 
     {
         
@@ -850,6 +850,12 @@ double Corrected_Angle(void)
     while (corrected < 0)
         corrected += 360.0;
     return corrected;
+}
+void Halt_Thrusters(void)
+{
+    Logged_Left_Thruster(0.0);
+    Logged_Main_Thruster(0.0);
+    Logged_Right_Thruster(0.0);
 }
 
 void Logged_Left_Thruster(double power)
@@ -1071,6 +1077,7 @@ void Lander_Control(void)
                 /* Step 3: Rotate until halfway*/
                 if (fabs(Robust_Angle() - 180) >= 5.0)
                 {
+                    Halt_Thrusters();
                     Rotate(480);
                     return;
                 }
@@ -1083,6 +1090,7 @@ void Lander_Control(void)
                 /* Step 4: Keep rotating until a full rotation is complete*/
                 if (fabs(Robust_Angle()) >= 5.0)
                 {
+                    Halt_Thrusters();
                     Rotate(480);
                     return;
                 }
