@@ -803,9 +803,31 @@ double Corrected_Angle(void)
     double height_from_platform = PLAT_Y - Robust_Position_Y();
 
     if (emergency_tilt == 0)
+    {
+        // This calculation doesn't quite make geometric sense, but it gives the
+        // desired movement, so...
         tilt = 360.0 * atan(k_x * x_error + k_vx * Robust_Velocity_X()) - 180;
+        // Make sure tilt is in [270, 360) or [0, 90] to prevent the undesired
+        // "barrel roll" behavior that was happening sometimes
+        while (tilt >= 360)
+            tilt -= 360.0;
+        while (tilt < 0)
+            tilt += 360.0;
+        //printf("Tilt pre-adjust: %f\t", tilt);
+        if (tilt > 90 && tilt < 180)
+        {
+            tilt = 90;
+        }
+        else if (tilt >= 180 && tilt < 270)
+        {
+            tilt = 270;
+        }
+        //printf("Tilt post-adjust: %f\n", tilt);
+    }
     else
+    {
         tilt = emergency_tilt;
+    }
     //printf("tilt: %f emergency_tilt: %f\n", tilt, emergency_tilt);
 
 
