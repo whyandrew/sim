@@ -176,6 +176,7 @@
 // Speed/Acceleration
 #define VEL_FACTOR 0.025 // At velocity=1.0, lander moves 0.025 pixel per frame
 #define ACCEL_FACTOR 0.00451 // At accel 1.0, velocity increases by 0.00451 per frame
+#define MIN_ROTATE_HEIGHT 30.0// Height below which the lander should remain vertical
 
 // Sensor states variables
 // True == working ok; False == something's wrong!
@@ -627,15 +628,15 @@ void Update_Min_Distances(void)
                     current_state->min_dist_R = INITIAL_MIN_DIST; 
                 else // Adjust previous value for y displacement
                     current_state->min_dist_R = prev_state->min_dist_R - x_displacement;
-                           printf("Estimated ranges:\n\tMin dist up:\t%f\n\tMin dist right:\t%f\n"
-                                   "\tMin dist down:\t%f\n\tMin dist left:\t%f\n",
-                                   current_state->min_dist_U, current_state->min_dist_R,
-                                   current_state->min_dist_D, current_state->min_dist_L);
+                           //printf("Estimated ranges:\n\tMin dist up:\t%f\n\tMin dist right:\t%f\n"
+                                   //"\tMin dist down:\t%f\n\tMin dist left:\t%f\n",
+                                   //current_state->min_dist_U, current_state->min_dist_R,
+                                   //current_state->min_dist_D, current_state->min_dist_L);
             }
         }
         else // At least one minimum reading != INITIAL_MIN_DIST, sonar must be functioning
         {
-            printf("%f\t%f\t%f\t%f\n", min_dist_U, min_dist_D, min_dist_L, min_dist_R);
+            //printf("%f\t%f\t%f\t%f\n", min_dist_U, min_dist_D, min_dist_L, min_dist_R);
             current_state->min_dist_U = min_dist_U;
             current_state->min_dist_D = min_dist_D;
             current_state->min_dist_L = min_dist_L;
@@ -645,25 +646,25 @@ void Update_Min_Distances(void)
     else if (currently_scanning && RangeDist() != -1)
     {
         double angle = Robust_Angle();
-        printf("Scanning angle:%f\treading:%f", angle, RangeDist());
+        //printf("Scanning angle:%f\treading:%f", angle, RangeDist());
         if (angle >= 315 || angle < 45)
         { // Laser pointing within "Down" quadrant
-            printf("\tDown quadrant\n");
+            //printf("\tDown quadrant\n");
             min_dist_D = fmin(min_dist_D, RangeDist());
         }
         else if (angle >= 45 && angle < 135)
         { // Laser pointing within "Left" quadrant
-            printf("\tLeft quadrant\n");
+            //printf("\tLeft quadrant\n");
             min_dist_L = fmin(min_dist_L, RangeDist());
         }
         else if (angle >= 135 && angle < 225)
         { // Laser pointing within "Up" quadrant
-            printf("\tUp quadrant\n");
+            //printf("\tUp quadrant\n");
             min_dist_U = fmin(min_dist_U, RangeDist());
         }
         else if (angle >= 225 && angle < 315)
         { // Laser pointing within "Right" quadrant
-            printf("\tRight quadrant\n");
+            //printf("\tRight quadrant\n");
             min_dist_R = fmin(min_dist_R, RangeDist());
         }
     }
@@ -1006,7 +1007,7 @@ void Lander_Control(void)
     double VXlim;
     double VYlim;
     
-    printf("Scanning step %d\n", scanning_step);
+    //printf("Scanning step %d\n", scanning_step);
     
     if (frame_count == 0)
     {
@@ -1070,6 +1071,12 @@ void Lander_Control(void)
         {
             case 0:
                 /* Step 0: Set variables to initial states */
+                if (PLAT_Y - Robust_Position_Y() < MIN_ROTATE_HEIGHT)
+                { // Skip scan if we are too close to the landing pad height
+                    printf("Too close to landing pad, skipping scheduled scan\n");
+                    currently_scanning = false;
+                    break;
+                }
                 printf("Start scan....\n");
                 startFrame = frame_count;
                 currently_scanning = true;
@@ -1078,8 +1085,8 @@ void Lander_Control(void)
                 scanning_step++;
             case 1:
                 /* Step 1: Ensure we are at target velocity */
-                printf("fabs(Robust_Velocity_Y() - target_y_velocity): %f\n",
-                       fabs(Robust_Velocity_Y() - target_y_velocity));
+                //printf("fabs(Robust_Velocity_Y() - target_y_velocity): %f\n",
+                //       fabs(Robust_Velocity_Y() - target_y_velocity));
                 if (fabs(Robust_Velocity_Y() - target_y_velocity) >= 0.1)
                 { // Not at target velocity yet
                     VXlim = 0;
@@ -1105,7 +1112,7 @@ void Lander_Control(void)
                 }
                 else
                 {
-                    printf("past_halfway\n");
+                    //printf("past_halfway\n");
                     scanning_step++;
                 }
             case 4:
@@ -1122,7 +1129,7 @@ void Lander_Control(void)
                 }
             case 5:
                 /* Step 5: Scan complete */
-                printf("Frames: %d\n", (int(endFrame - startFrame)));
+                printf("Frames: %d\n", frames_since_scan);
                 Rotate(0); // Stop rotation
                 currently_scanning = false;
                 isRotating = false;
@@ -1137,7 +1144,7 @@ void Lander_Control(void)
                 scanning_step = 0;
         }
     }
-    printf("VXlim:%f VYlim:%f\n", VXlim, VYlim);
+    //printf("VXlim:%f VYlim:%f\n", VXlim, VYlim);
 
 
     // IMPORTANT NOTE: The code below assumes all components working
