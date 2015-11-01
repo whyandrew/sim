@@ -3,15 +3,15 @@ CSCC85 - Embedded Systems
 Project 2 - Lander Control
 ______________________________________________________________________
 
-Team name:
+Team name: Magnetic Electrons
 
-Name 1 (last, first):
-Student number 1:
+Name 1 (last, first): McGee, Pat
+Student number 1: 0991724416
 
-Name 2 (last, first):
+Name 2 (last, first): Wong, Andrew
 Student number 2:
 
-Name 3 (last, first):
+Name 3 (last, first): Chen, Patrick
 Student number 3:
 
 (special: Lose marks for not completing the above information)
@@ -23,8 +23,8 @@ you think the task could be completed
 
 a) The program can land the craft safely in mode '1'
   
-   - for the 'easy.ppm' map (yes/no)
-   - for the 'hard.ppm' map (yes/no)
+   - for the 'easy.ppm' map (yes)
+   - for the 'hard.ppm' map (yes)
 
    If it fails, describe the conditions in which it fails and how
    you think this could be resolved
@@ -45,16 +45,53 @@ Questions:
    determine the state of the craft and ultimately control it 
    properly?
 
+Sensor noise was not too big of an issue for the most part, partly
+because of the way the simulation was set up (unlike in real life,
+you can take as many samples as desired while time stays paused.)
+
 2) Describe the technique(s) you used to deal with sensor noise
 
+Taking numerous samples and averaging them.
+
 3) Describe your strategy for dealing with thruster failures
+
+Two thruster mode:
+In cases where one side thruster is out and the main and other side
+thrusters still work, the lander is tilted 45° such that the two
+working thrusters each point 45° from straight down. In this situation
+it turned out (surprisingly) that the control logic from the starter
+code actually worked fine as-is.
+
+Single thruster mode:
+In cases where only one thruster works, or where the two side thrusters
+work but the main one doesn't, the lander gets assigned a "home
+orientation" such that one working thruster would point down.
+This thruster is activated with a call to Single_Thruster, which also
+ensures that no other working thruster fires. Whenever the starter code
+would have activated the main thruster, Single_Thruster is run instead. 
+
+A tilt adjustment is applied to this home orientation when horizontal
+movement is needed. The tilt adjustment takes into account x velocity
+and position (attempt at PID with no integral component) to try
+to arrive over the landing pad without overshooting too much.
 
 4) Describe your strategy for dealing with sensor malfunctions:
 
    - Position sensors
    - Velocity sensors
-   - Angle
-   - Sonar
+
+- Angle
+The angle reading still gives angle data when it malfunctions,
+but it's just noisier. To compensate, many more samples are
+averaged.
+
+- Sonar
+At regular intervals, the lander stops in place (~0 x velocity
+and a slight upwards y velocity) and does a full 360° rotation,
+taking RangeDist readings. Instead of emulating the 36-array
+of the actual sonar, it just finds minimum distances for each
+quadrant as used by Safety_Override. Between scans, these minimums
+are adjusted for lander position change.
 
    What if you have multiple failures? what could you do if, for
    example both position and velocity sensors became inoperative?
@@ -62,6 +99,9 @@ Questions:
 5) What was the hardest failure type to deal with (i.e. which is
    the component, either sensor or control that makes the lander
    harder to handle?)?
+
+Y velocity seemed to be the most difficult, especially in combination
+with Y position failiure.
 
 6) Assume a human pilot was in charge of controlling the craft 
    (i.e. the pilot has control of thrusters and rotation).
