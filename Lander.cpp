@@ -1098,10 +1098,20 @@ void Lander_Control(void)
                     scanning_step++;
                 }
             case 2:
-                /* Step 2: Record initial angle
-                   */
-                initial_angle = Robust_Angle();
-                scanning_step++;
+                /* Step 2: Begin scan upright */
+
+                if (Robust_Angle()>(1)&&Robust_Angle()<359)
+                {
+                    if (Robust_Angle()>=180) 
+                        Rotate(360-Robust_Angle());
+                    else 
+                        Rotate(-Robust_Angle());
+                    return;
+                }
+                else
+                {
+                    scanning_step++;
+                }
             case 3:
                 /* Step 3: Rotate until halfway*/
                 if (fabs(Robust_Angle() - 180) >= 5.0)
