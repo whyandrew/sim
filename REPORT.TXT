@@ -77,8 +77,26 @@ to arrive over the landing pad without overshooting too much.
 
 4) Describe your strategy for dealing with sensor malfunctions:
 
+Position and velocity:
+Bad sensors are detected by looking at the difference between
+max and min values returned by the sensor. The random data from
+a bad sensor has a much wider range of values.
+
    - Position sensors
+Missing position information is calculated from the recorded
+position and velocity information for the previous frame.
+Initially acceleration was incorporated too but this did not
+seem to be improving accuracy.
+
    - Velocity sensors
+Predicted x and y acceleration are calculated for each frame
+based on thruster power (recorded by logged wrapper functions)
+and lander angle. We were not able to find a way to model
+thruster noise, which would affect the accuracy of predicted
+acceleration. Missing X velocity is calculated from the velocity
+and predicted acceleration recorded for the previous frame.
+For Y velocity this method was not sufficient, and velocity is
+calculated from the displacement over the last several frames.
 
 - Angle
 The angle reading still gives angle data when it malfunctions,
@@ -86,6 +104,12 @@ but it's just noisier. To compensate, many more samples are
 averaged.
 
 - Sonar
+Failures are a little tricky to detect since faulty sonar gives
+the same readings as working sonar that's just out of range of
+any terrain. Did not put much effort into distinguishing between
+the two situations. The laser scans described below are done
+regardless.
+
 At regular intervals, the lander stops in place (~0 x velocity
 and a slight upwards y velocity) and does a full 360° rotation,
 taking RangeDist readings. Instead of emulating the 36-array
@@ -95,6 +119,10 @@ are adjusted for lander position change.
 
    What if you have multiple failures? what could you do if, for
    example both position and velocity sensors became inoperative?
+
+With x position and x velocity out, calculating from previous values
+and thruster power seems to work out alright. Y seems to be a much
+bigger problem, for reasons we were not able to fully diagnose.
 
 5) What was the hardest failure type to deal with (i.e. which is
    the component, either sensor or control that makes the lander
