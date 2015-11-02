@@ -31,11 +31,15 @@ a) The program can land the craft safely in mode '1'
 
 b) The program can land the craft safely in mode '2'
   
-   - for the 'easy.ppm' map (yes/no)
-   - for the 'hard.ppm' map (yes/no)
+   - for the 'easy.ppm' map (yes, mostly)
+   - for the 'hard.ppm' map (yes, mostly)
 
    If it fails, describe the conditions in which it fails and how
    you think this could be resolved
+
+   (5 7) 
+   - fail Pos_Y and Vel_Y may not works when starting position
+   is in far left/right corner. Not very good in hard map
 
 _______________________________________________________________________
 
@@ -84,19 +88,27 @@ a bad sensor has a much wider range of values.
 
    - Position sensors
 Missing position information is calculated from the recorded
-position and velocity information for the previous frame.
-Initially acceleration was incorporated too but this did not
-seem to be improving accuracy.
+position and velocity information for the previous frame, with
+an estimated displacement per frame factor.
 
    - Velocity sensors
-Predicted x and y acceleration are calculated for each frame
+
+  Predicted x and y acceleration are calculated for each frame
 based on thruster power (recorded by logged wrapper functions)
 and lander angle. We were not able to find a way to model
 thruster noise, which would affect the accuracy of predicted
-acceleration. Missing X velocity is calculated from the velocity
+acceleration. 
+  Missing X velocity is calculated from the velocity
 and predicted acceleration recorded for the previous frame.
-For Y velocity this method was not sufficient, and velocity is
-calculated from the displacement over the last several frames.
+  For Y velocity, velocity is calculated using Position_Y, 
+as error accumulation from acceleration->velocity->movement
+over many frames become too large.
+If Pos_Y sensor is also broken, Vel_Y will be estimated first
+using acceleration when the accumulated error should still be small.
+Then it'll switch to using Laser or Sonar, if they're available.
+Basically calculated displacement per time to get velocity. But those
+2 sensors also have limitation.
+
 
 - Angle
 The angle reading still gives angle data when it malfunctions,
