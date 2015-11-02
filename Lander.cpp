@@ -423,12 +423,12 @@ void Update_Velocity_Y(void)
         //printf("Vel_y: %3.2f\n", current_state->vel_y);
         if (PosY_OK && frame_count > 10)
         {   // if Position sensor is working, use that to calculate velocity and average with the one above.
-            int oldestState = (latest_History - 9 + MAX_VPOS_HISTORY) % MAX_VPOS_HISTORY;
-            current_state->vel_y = (VPos_History[oldestState] - VPos_History[latest_History] ) / (9 * VEL_FACTOR);
+            int oldIndex = (latest_History - 9 + MAX_VPOS_HISTORY) % MAX_VPOS_HISTORY;
+            current_state->vel_y = (VPos_History[oldIndex] - VPos_History[latest_History]) / (10 * VEL_FACTOR);
             //current_state->vel_y /= 2.0;
             printf("OldIndex: %d, CurrIndex: %d || OldPos: %3.2f, CurrPos: %3.2f || Diff: %3.2f, \n",
-                oldestState, latest_History, VPos_History[oldestState], VPos_History[latest_History],
-                (VPos_History[oldestState] - VPos_History[latest_History]));
+                oldIndex, latest_History, VPos_History[oldIndex], VPos_History[latest_History],
+                (VPos_History[oldIndex] - VPos_History[latest_History]));
         }
         else if (!PosY_OK)
         {
@@ -565,8 +565,6 @@ void Update_Position_Y(void)
         }
 
     }
-
-    latest_History = (latest_History + 1) % MAX_VPOS_HISTORY;
 }
 
 void Update_Angle(void)
@@ -1095,6 +1093,7 @@ void Lander_Control(void)
     current_state = recent_states[frame_count % NUM_RECENT_STATES];
     Log_Sensors();
     frame_count++;
+    latest_History = (latest_History + 1) % MAX_VPOS_HISTORY; // logging for fail Vel_Y
     if (!currently_scanning && frames_since_scan > SCAN_FREQUENCY)
     {
         currently_scanning = true;
@@ -1316,7 +1315,7 @@ void Lander_Control(void)
     else // vel_y is broken
     {
         int delayFrame = 300;
-        double downLimit = 7.0;
+        double downLimit = -7.0;
         double highPower = (frame_count > overrideFrameStart + delayFrame)? 0.5: 1.0;
         double lowPower = (frame_count > overrideFrameStart + delayFrame)? 0.1: 0.0;
 
