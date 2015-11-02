@@ -165,6 +165,7 @@
 
 // Constants
 #define NUMSAMPLES 40
+#define NUMSAMPLES_FAULTY_ANGLE 20000
 #define NUM_RECENT_STATES 10
 #define MAX_VEL_DIFF 2.0  // Maximum span between velocity readings to be considered legit
 #define MAX_POS_DIFF 50.0 // Maximum span between position readings to be considered legit
@@ -569,6 +570,9 @@ void Update_Position_Y(void)
 
 void Update_Angle(void)
 {
+    double ret = 0.0;
+    int counter;
+
     //Check for bad Angle sensor
     if (Angle_OK)
     {
@@ -595,8 +599,33 @@ void Update_Angle(void)
     }
 
     current_state->angle_OK = Angle_OK;
+    
+    // Corner case when angle is near 0 (360) degrees:
+    // It appears Lander_Control API will always return Angle() either 
+    // using 0-range (can be negative angle), 360-range (can be more than 360)
+    // on a single call into Lander_Control.
+    // This makes averaging easy since we won't be averaging, say, 359 and 1 degrees
+
+    counter = (Angle_OK)? NUMSAMPLES: NUMSAMPLES_FAULTY_ANGLE;
+
+    for (int i = 0; i < counter; i++)
+    {
+        ret += Angle();
+    }
+
+    ret = ret / counter;
+
+    while (ret >= 360.0)
+    {
+        ret -= 360.0;
+    }
+    while (ret < 0.0)
+    {
+        ret += 360.0;
+    }
+
     // Angle sensor still works when "faulty"... just alot more noise.
-    current_state->angle = Robust_Angle();
+    current_state->angle = ret;
 }
 
 void Update_Accel(void)
@@ -805,32 +834,7 @@ double Robust_Sonar(double angle)
 
 double Robust_Angle(void)
 {
-    // Corner case when angle is near 0 (360) degrees:
-    // It appears Lander_Control API will always return Angle() either 
-    // using 0-range (can be negative angle), 360-range (can be more than 360)
-    // on a single call into Lander_Control.
-    // This makes averaging easy since we won't be averaging, say, 359 and 1 degrees
-    double ret = 0.0;
-    int counter;
-
-    counter = (Angle_OK)? NUMSAMPLES: NUMSAMPLES * 100;
-
-    for (int i = 0; i < counter; i++)
-    {
-        ret += Angle();
-    }
-
-    ret = ret / counter;
-
-    while (ret >= 360.0)
-    {
-        ret -= 360.0;
-    }
-    while (ret < 0.0)
-    {
-        ret += 360.0;
-    }
-    return ret;
+    return current_state->angle;
 }
 
 double Robust_RangeDist(void)
