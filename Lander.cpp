@@ -1292,13 +1292,16 @@ void Lander_Control(void)
     {
         //overrideVY = true;
         overrideFrameStart = frame_count;
-        VYlim = -4.0;
+        if (!currently_scanning || !PosY_OK)
+        {
+            VYlim = -4.0;
+        }
     }
 
     // Vertical adjustments. Basically, keep the module below the limit for
     // vertical velocity and allow for continuous descent. We trust
     // Safety_Override() to save us from crashing with the ground.
-    if (true == Vy_OK)
+    if (true == Vy_OK || (currently_scanning && scanning_step == 1) )
     { 
         // when Vel_Y is working
         if (MT_OK && (RT_OK || LT_OK ))
@@ -1319,7 +1322,7 @@ void Lander_Control(void)
     else // vel_y is broken
     {
         int delayFrame = 300;
-        double downLimit = -7.0;
+        double downLimit = -8.0;
         double highPower = (frame_count > overrideFrameStart + delayFrame)? 0.5: 1.0;
         double lowPower = (frame_count > overrideFrameStart + delayFrame)? 0.1: 0.0;
 
