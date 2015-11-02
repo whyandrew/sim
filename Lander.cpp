@@ -1098,7 +1098,7 @@ void Lander_Control(void)
     Log_Sensors();
     frame_count++;
     latest_History = (latest_History + 1) % MAX_VPOS_HISTORY; // logging for fail Vel_Y
-    if (!currently_scanning && frames_since_scan > SCAN_FREQUENCY)
+    if (!currently_scanning && frames_since_scan > SCAN_FREQUENCY && (Vy_OK || PosY_OK))
     {
         currently_scanning = true;
         scanning_step = 0;
