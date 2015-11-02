@@ -31,12 +31,14 @@ a) The program can land the craft safely in mode '1'
 
 b) The program can land the craft safely in mode '2'
   
-   - for the 'easy.ppm' map (yes/no)
-   - for the 'hard.ppm' map (yes/no)
+   - for the 'easy.ppm' map (most combinations)
+   - for the 'hard.ppm' map (most combinations)
 
    If it fails, describe the conditions in which it fails and how
    you think this could be resolved
-
+   
+Never lands correctly with both Y velocity and Y position out. Not
+sure what an effective approach would be.
 _______________________________________________________________________
 
 Questions:
