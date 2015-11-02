@@ -136,23 +136,40 @@ with Y position failiure.
    How would you change Safety_Override() so that it prevents
    the pilot from accidentally crashing the lander?
    
+   Allow the ability of a manual overide for the human if needed
+   
 7) Do you think it is reasonable to write such a control function?
    (i.e. a routine that takes control from a human for their
     own safety)
+    
+    To some extent yes, since it has been proven to be effective when the software is written well.
+    However there are cases where the software was written poorly and the computer takes control
+    and kills the human. This could have been resolved if the human was able to have taken control
+    over the vehicle and adjust accordingly.
 
 8) Should the pilot be aware that this software is present?
    (yes or no, and tell me why you think so!)
+   Yes, the pilot should know the inner workings of the system.
+   If something bad happens they will know whether the computer will 
+   try and take control to fix the situation or they have to adjust it themselves
 
 9) Would you buy/drive a car that you know has control software
    that will take control from you if it estimates you are
    doing something dangerous?
+   
+   No, since the software could have bugs and scenarios that the developer didn't
+   account for. It could think you're in danger and do something dangerous like 
+   drive into a tree, when you were actually safe in the scenario.
 
 10) Can you as an embedded systems designer think of every 
     possible scenario that could go wrong so as to write 
     control software that ALWAYS works?
 
-    Think about that...
+    As learned in C01, its impossible to think of every possible test scenario.
+    Life is random and there are infinite number of things that could occur that
+    the designer didn't account for.
 ________________________________________________________________
+
 
 Grading:
 
