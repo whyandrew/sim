@@ -417,23 +417,23 @@ void Update_Velocity_Y(void)
     }
     else // Biggest span between values too high, consider Vel_Y sensor broken
     {
-        printf("\nVelocity_Y Sensor FAIL at frame %d\n", (int)frame_count);
+        //printf("\nVelocity_Y Sensor FAIL at frame %d\n", (int)frame_count);
         current_state->vel_y_OK = false;
         current_state->vel_y =  frame_count > 0 ? (prev_state->vel_y
                                                    + prev_state->accel_y * ACCEL_FACTOR) : 0;
         //printf("Vel_y: %3.2f\n", current_state->vel_y);
         if (PosY_OK && frame_count > 10)
-        {   // if Position sensor is working, use that to calculate velocity and average with the one above.
+        {   
             int oldIndex = (latest_History - 9 + MAX_VPOS_HISTORY) % MAX_VPOS_HISTORY;
             current_state->vel_y = (VPos_History[oldIndex] - VPos_History[latest_History]) / (10 * VEL_FACTOR);
-            //current_state->vel_y /= 2.0;
-            printf("OldIndex: %d, CurrIndex: %d || OldPos: %3.2f, CurrPos: %3.2f || Diff: %3.2f, \n",
-                oldIndex, latest_History, VPos_History[oldIndex], VPos_History[latest_History],
-                (VPos_History[oldIndex] - VPos_History[latest_History]));
+
+            // printf("OldIndex: %d, CurrIndex: %d || OldPos: %3.2f, CurrPos: %3.2f || Diff: %3.3f, \n",
+            //     oldIndex, latest_History, VPos_History[oldIndex], VPos_History[latest_History],
+            //     (VPos_History[oldIndex] - VPos_History[latest_History]));
         }
         else if (!PosY_OK)
         {
-            int framesBack = 5;
+            int framesBack = 50;
             int oldIndex = (latest_History - framesBack + 1 + MAX_VPOS_HISTORY) % MAX_VPOS_HISTORY;
 
             if (frame_count >= framesBack)
@@ -442,11 +442,12 @@ void Update_Velocity_Y(void)
                     (framesBack * VEL_FACTOR);
             }
 
-            printf("OldIndex: %d, CurrIndex: %d || OldPos: %3.2f, CurrPos: %3.2f || Diff: %3.2f, ",
-                oldIndex, latest_History, VPos_History[oldIndex], VPos_History[latest_History],
-                (VPos_History[oldIndex] - VPos_History[latest_History]));
+            // printf("OldIndex: %d, CurrIndex: %d || OldPos: %3.2f, CurrPos: %3.2f || Diff: %3.6f, \n",
+            //     oldIndex, latest_History, VPos_History[oldIndex], VPos_History[latest_History],
+            //     (VPos_History[oldIndex] - VPos_History[latest_History]));
+            // printf("PLAT_X - Pos_X = %f\n", (PLAT_X - current_state->pos_x));
         }
-        printf("Vel_y: %3.2f\n", current_state->vel_y);
+        // printf("Vel_y: %3.2f\n", current_state->vel_y);
         Vy_OK = false;
     }
 
@@ -521,7 +522,7 @@ void Update_Position_Y(void)
     }
     else // Biggest span between values too high, reading suspect
     {
-        printf("Position_Y Sensor FAIL at frame %d\n", (int)frame_count);
+        //printf("Position_Y Sensor FAIL at frame %d\n", (int)frame_count);
         current_state->pos_y_OK = false;
         // current_state->pos_y =  frame_count > 0 ? (prev_state->pos_y
         //                                 + prev_state->vel_y * T_STEP
@@ -532,36 +533,31 @@ void Update_Position_Y(void)
     }
 
     // For bad Vel_Y sensor
-    // if PosY ok, 
-    //      then use pos_y
-    // else 
-    //      if (lander vertical and within landing pad pos_x
-    //          then use LASER
-    //      else if (Sonar[180] > 0)
-    //              then use SONAR
-    //      else
-    //          use POS_y // which will be estimate and kinda useless.
-
     if (PosY_OK)
     {        
         VPos_History[latest_History] = current_state->pos_y;
     }
     else // PosY_OK == false
     {
-        if (current_state->angle < 2.0 && current_state->angle > 358.0 && 
-            fabs(PLAT_X - current_state->pos_x) < 20)
+        // printf("Angle %f, X-delta %f, Sonar %f\n",
+        //     current_state->angle, fabs(PLAT_X - current_state->pos_x), Robust_Sonar(180));
+
+        if ((current_state->angle < 5.0 || current_state->angle > 355.0) && 
+            fabs(PLAT_X - current_state->pos_x) < 30) // This delta to platform will only works on easy map
         {
+            // printf("LASER\n");
             // Use laser if within PLAT_X range
             VPos_History[latest_History] = PLAT_Y - Robust_RangeDist() - 21;
         }
-        //else if (prev_state->min_dist_D > 0) 
         //Use previous state for now... update_minD for current is not done yet here
         else if (Robust_Sonar(180) > 0) // switch to min_dist later
         {
+            // printf("SONAR\n");
             VPos_History[latest_History] = PLAT_Y - Robust_Sonar(180);
         }
         else
         {
+            // printf("Nothing\n");
             VPos_History[latest_History] = current_state->pos_y;
         }
 
@@ -635,14 +631,6 @@ void Update_Accel(void)
     lander_LR_accel = current_state->pow_L * LT_ACCEL;
     lander_LR_accel -= current_state->pow_R * RT_ACCEL;
     lander_UpDown_accel = current_state->pow_M * MT_ACCEL;
-    /* Convert accel from cartesian to polar coordinates*/
-    // accel_theta = lander_UpDown_accel !=0.0 ? atan2(lander_UpDown_accel, lander_LR_accel) : 0.0;
-    // accel_magnitude = sqrt(lander_LR_accel * lander_LR_accel + lander_UpDown_accel * lander_UpDown_accel);
-    // /* Correct theta for actual orientation */
-    // accel_theta -= current_state->angle * PI / 180; // TODO: check if += or -= is correct
-    
-    // current_state->accel_x = accel_magnitude * cos(accel_theta);
-    // current_state->accel_y = accel_magnitude * sin(accel_theta) - G_ACCEL;
     
     current_state->accel_x = lander_LR_accel * cos(-current_state->angle * PI / 180.0);
     current_state->accel_y = -(lander_LR_accel * sin(current_state->angle * PI / 180.0));
@@ -651,10 +639,7 @@ void Update_Accel(void)
     current_state->accel_y += lander_UpDown_accel * cos(current_state->angle * PI / 180.0);
 
     current_state->accel_y -= G_ACCEL;
-    
-    // printf("Update_Accel: pow_L %f pow_M %f pow_R %f angle %f\n accel_x %f accel_y %f\n\n",
-    //        current_state->pow_L, current_state->pow_M, current_state->pow_R,
-    //        current_state->angle, current_state->accel_x, current_state->accel_y);
+
 }
 
 void Update_Min_Distances(void)
@@ -1054,27 +1039,6 @@ void Lander_Control(void)
        fine.
     */
 
-    //printf(".........................................................................\n");
-    // for (int i = 0; i<10; i++)
-    // {
-    //     printf("X:%f; Y:%f; Vx:%f; Vy:%f; Angle:%f; RangeDist:%f\n",
-    //         Robust_Position_X(), Robust_Position_Y(), Robust_Velocity_X(), Robust_Velocity_Y(),
-    //         Robust_Angle(), Robust_RangeDist() );
-    // }
-
-    // for (int i = 10; i < 27; i++)
-    // {
-    //     printf("%3.1f, ",            SONAR_DIST[i]);
-    // }
-    // printf("\n");
-
-    //for (int i = 0; i<10; i++)
-    //{
-    //    printf("Angle:%f; Robust_Angle:%f\n",
-    //        Angle(), Robust_Angle() );
-    //}
-    //printf(".........\n");
-
     double VXlim;
     double VYlim;
     
@@ -1326,6 +1290,11 @@ void Lander_Control(void)
         double highPower = (frame_count > overrideFrameStart + delayFrame)? 0.5: 1.0;
         double lowPower = (frame_count > overrideFrameStart + delayFrame)? 0.1: 0.0;
 
+        if (!PosY_OK)
+        {
+            highPower = 1.0;
+        }
+
         if (MT_OK && (RT_OK || LT_OK ))
         {
             if (Robust_Velocity_Y() < downLimit) 
@@ -1413,18 +1382,11 @@ void Safety_Override(void)
     if (Robust_Velocity_X()>0)
     {
         dmin = current_state->min_dist_R;
-        // for (int i=5;i<14;i++)
-        //     if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < dmin) 
-        //         dmin = SONAR_DIST[i];
-        // printf("dmin:%f\tcurrent_state->min_dist_R:%f\n", dmin, current_state->min_dist_R);
     }
     else
     {
         dmin = current_state->min_dist_L;
-        // for (int i=22;i<32;i++)
-        //     if (SONAR_DIST[i]>-1&&SONAR_DIST[i] < dmin) 
-        //         dmin = SONAR_DIST[i];
-        // printf("dmin:%f\tcurrent_state->min_dist_L:%f\n", dmin, current_state->min_dist_L);
+
     }
     // Determine whether we're too close for comfort. There is a reason
     // to have this distance limit modulated by horizontal speed...
@@ -1478,22 +1440,12 @@ void Safety_Override(void)
     if (Robust_Velocity_Y()>5)      // Mind this! there is a reason for it...
     {
         dmin = current_state->min_dist_U;
-        // for (int i=0; i<5; i++)
-        //     if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
-        //         dmin = SONAR_DIST[i];
 
-        // for (int i=32; i<36; i++)
-        //     if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
-        //         dmin = SONAR_DIST[i];
-        // printf("dmin:%f\tcurrent_state->min_dist_U:%f\n", dmin, current_state->min_dist_U);
     }
     else
     {
         dmin = current_state->min_dist_D;
-        // for (int i=14; i<22; i++)
-        //     if (SONAR_DIST[i] > -1 && SONAR_DIST[i] < dmin) 
-        //         dmin = SONAR_DIST[i];
-        // printf("dmin:%f\tcurrent_state->min_dist_D:%f\n", dmin, current_state->min_dist_D);
+
     }
     if (dmin<DistLimit)   // Too close to a surface in the horizontal direction
     {
