@@ -208,6 +208,14 @@ double emergency_tilt = 0.0;
 unsigned long frame_count = 0;
 int frames_since_scan = 0;
 
+// For faulty Velocity_Y
+#define MAX_VPOS_HISTORY 100
+double * VPos_History; // another array to keep POS_Y history
+int latest_History = 0;
+bool overrideVY = false;
+int overrideFrameStart = 0;
+
+
     /************************************************************
     *                             STATE
     * 
@@ -292,14 +300,14 @@ void Log_Sensors(void)
 {
     /* Update state variables */
 
+    // Order is important, Update velocities need position and angle.
+    Update_Angle();
+
     Update_Position_X();
     Update_Position_Y();
 
     Update_Velocity_X();
     Update_Velocity_Y();
-    
-    Update_Angle();
-    //printf("\n\n******************************************************\n");
 
     current_state->thr_L_OK = LT_OK;
     if (!LT_OK || prev_state==NULL)
@@ -406,20 +414,42 @@ void Update_Velocity_Y(void)
         current_state->vel_y = (sum / NUMSAMPLES);
         Vy_OK = true;
     }
-    else // Biggest span between values too high, reading suspect
+    else // Biggest span between values too high, consider Vel_Y sensor broken
     {
+        printf("\nVelocity_Y Sensor FAIL at frame %d\n", (int)frame_count);
         current_state->vel_y_OK = false;
         current_state->vel_y =  frame_count > 0 ? (prev_state->vel_y
                                                    + prev_state->accel_y * ACCEL_FACTOR) : 0;
+        //printf("Vel_y: %3.2f\n", current_state->vel_y);
         if (PosY_OK && frame_count > 10)
         {   // if Position sensor is working, use that to calculate velocity and average with the one above.
-            int oldestState = (frame_count - 9) % NUM_RECENT_STATES;
-            current_state->vel_y += (recent_states[oldestState]->pos_y - current_state->pos_y ) / (9 * VEL_FACTOR);
-            current_state->vel_y /= 2.0;
+            int oldestState = (latest_History - 9 + MAX_VPOS_HISTORY) % MAX_VPOS_HISTORY;
+            current_state->vel_y = (VPos_History[oldestState] - VPos_History[latest_History] ) / (9 * VEL_FACTOR);
+            //current_state->vel_y /= 2.0;
+            printf("OldIndex: %d, CurrIndex: %d || OldPos: %3.2f, CurrPos: %3.2f || Diff: %3.2f, \n",
+                oldestState, latest_History, VPos_History[oldestState], VPos_History[latest_History],
+                (VPos_History[oldestState] - VPos_History[latest_History]));
         }
+        else if (!PosY_OK)
+        {
+            int framesBack = 5;
+            int oldIndex = (latest_History - framesBack + 1 + MAX_VPOS_HISTORY) % MAX_VPOS_HISTORY;
 
+            if (frame_count >= framesBack)
+            {
+                current_state->vel_y = (VPos_History[oldIndex] - VPos_History[latest_History]) /
+                    (framesBack * VEL_FACTOR);
+            }
+
+            printf("OldIndex: %d, CurrIndex: %d || OldPos: %3.2f, CurrPos: %3.2f || Diff: %3.2f, ",
+                oldIndex, latest_History, VPos_History[oldIndex], VPos_History[latest_History],
+                (VPos_History[oldIndex] - VPos_History[latest_History]));
+        }
+        printf("Vel_y: %3.2f\n", current_state->vel_y);
         Vy_OK = false;
     }
+
+    //printf("Pad_y: %f, Laser: %f, Pos_y: %f\n", PLAT_Y, Robust_RangeDist(), current_state->pos_y);
 }
 
 void Update_Position_X(void)
@@ -490,6 +520,7 @@ void Update_Position_Y(void)
     }
     else // Biggest span between values too high, reading suspect
     {
+        printf("Position_Y Sensor FAIL at frame %d\n", (int)frame_count);
         current_state->pos_y_OK = false;
         // current_state->pos_y =  frame_count > 0 ? (prev_state->pos_y
         //                                 + prev_state->vel_y * T_STEP
@@ -498,6 +529,44 @@ void Update_Position_Y(void)
                                         - prev_state->vel_y * VEL_FACTOR) : 0;
         PosY_OK = false;
     }
+
+    // For bad Vel_Y sensor
+    // if PosY ok, 
+    //      then use pos_y
+    // else 
+    //      if (lander vertical and within landing pad pos_x
+    //          then use LASER
+    //      else if (Sonar[180] > 0)
+    //              then use SONAR
+    //      else
+    //          use POS_y // which will be estimate and kinda useless.
+
+    if (PosY_OK)
+    {        
+        VPos_History[latest_History] = current_state->pos_y;
+    }
+    else // PosY_OK == false
+    {
+        if (current_state->angle < 2.0 && current_state->angle > 358.0 && 
+            fabs(PLAT_X - current_state->pos_x) < 20)
+        {
+            // Use laser if within PLAT_X range
+            VPos_History[latest_History] = PLAT_Y - Robust_RangeDist() - 21;
+        }
+        //else if (prev_state->min_dist_D > 0) 
+        //Use previous state for now... update_minD for current is not done yet here
+        else if (Robust_Sonar(180) > 0) // switch to min_dist later
+        {
+            VPos_History[latest_History] = PLAT_Y - Robust_Sonar(180);
+        }
+        else
+        {
+            VPos_History[latest_History] = current_state->pos_y;
+        }
+
+    }
+
+    latest_History = (latest_History + 1) % MAX_VPOS_HISTORY;
 }
 
 void Update_Angle(void)
@@ -1017,6 +1086,7 @@ void Lander_Control(void)
         }
         //predicted_state = (struct State *)calloc(sizeof(struct State), 1);
         prev_state = NULL;
+        VPos_History = new double[MAX_VPOS_HISTORY];
     }
     else
     {
@@ -1098,20 +1168,10 @@ void Lander_Control(void)
                     scanning_step++;
                 }
             case 2:
-                /* Step 2: Begin scan upright */
-
-                if (Robust_Angle()>(1)&&Robust_Angle()<359)
-                {
-                    if (Robust_Angle()>=180) 
-                        Rotate(360-Robust_Angle());
-                    else 
-                        Rotate(-Robust_Angle());
-                    return;
-                }
-                else
-                {
-                    scanning_step++;
-                }
+                /* Step 2: Record initial angle
+                   */
+                initial_angle = Robust_Angle();
+                scanning_step++;
             case 3:
                 /* Step 3: Rotate until halfway*/
                 if (fabs(Robust_Angle() - 180) >= 5.0)
@@ -1224,22 +1284,57 @@ void Lander_Control(void)
         }
     }
 
+    // When Vel_Y sensor not working, override speed to -4.0 always
+    if (false == Vy_OK)
+    {
+        //overrideVY = true;
+        overrideFrameStart = frame_count;
+        VYlim = -4.0;
+    }
+
     // Vertical adjustments. Basically, keep the module below the limit for
     // vertical velocity and allow for continuous descent. We trust
     // Safety_Override() to save us from crashing with the ground.
-    if (MT_OK && (RT_OK || LT_OK ))
-    {
-        if (Robust_Velocity_Y()<VYlim) 
-            Logged_Main_Thruster(1.0);
-        else 
-            Logged_Main_Thruster(0);
+    if (true == Vy_OK)
+    { 
+        // when Vel_Y is working
+        if (MT_OK && (RT_OK || LT_OK ))
+        {
+            if (Robust_Velocity_Y()<VYlim) 
+                Logged_Main_Thruster(1.0);
+            else 
+                Logged_Main_Thruster(0);
+        }
+        else
+        {
+            if (Robust_Velocity_Y()<VYlim) 
+                Single_Thruster(1.0);
+            else 
+                Single_Thruster(0);
+        }
     }
-    else
+    else // vel_y is broken
     {
-        if (Robust_Velocity_Y()<VYlim) 
-            Single_Thruster(1.0);
-        else 
-            Single_Thruster(0);
+        int delayFrame = 300;
+        double downLimit = 7.0;
+        double highPower = (frame_count > overrideFrameStart + delayFrame)? 0.5: 1.0;
+        double lowPower = (frame_count > overrideFrameStart + delayFrame)? 0.1: 0.0;
+
+        if (MT_OK && (RT_OK || LT_OK ))
+        {
+            if (Robust_Velocity_Y() < downLimit) 
+                Logged_Main_Thruster(highPower);
+            else 
+                Logged_Main_Thruster(lowPower);
+        }
+        else
+        {
+            if (Robust_Velocity_Y() < downLimit) 
+                Single_Thruster(highPower);
+            else 
+                Single_Thruster(lowPower);
+        }
+
     }
 }
     /************************************************************
