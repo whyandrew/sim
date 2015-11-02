@@ -12,7 +12,7 @@ Name 2 (last, first): Wong, Andrew
 Student number 2:
 
 Name 3 (last, first): Chen, Patrick
-Student number 3:
+Student number 3: 999064907
 
 (special: Lose marks for not completing the above information)
 _______________________________________________________________________
