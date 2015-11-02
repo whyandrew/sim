@@ -30,16 +30,17 @@ a) The program can land the craft safely in mode '1'
    you think this could be resolved
 
 b) The program can land the craft safely in mode '2'
-  
+
    - for the 'easy.ppm' map (yes, mostly)
    - for the 'hard.ppm' map (yes, mostly)
 
    If it fails, describe the conditions in which it fails and how
    you think this could be resolved
 
-   (5 7) 
-   - fail Pos_Y and Vel_Y may not works when starting position
+   (5 7) - both Y velocity and Y position out
+   May not works when starting position
    is in far left/right corner. Not very good in hard map
+
 
 _______________________________________________________________________
 
